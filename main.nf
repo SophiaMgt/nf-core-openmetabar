@@ -16,6 +16,7 @@
 include { OPENMETABAR  } from './workflows/openmetabar'
 include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_openmetabar_pipeline'
 include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_openmetabar_pipeline'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOWS FOR PIPELINE
@@ -26,17 +27,16 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_open
 // WORKFLOW: Run main analysis pipeline depending on type of input
 //
 workflow NFCORE_OPENMETABAR {
-
-    take:
-    samplesheet // channel: samplesheet read in from --input
-
+    
     main:
+
+    ch_design = Channel.value(file(params.design_file, checkIfExists: true))
 
     //
     // WORKFLOW: Run pipeline
     //
     OPENMETABAR (
-        samplesheet
+        ch_design
     )
 }
 /*
@@ -56,16 +56,14 @@ workflow {
         params.validate_params,
         params.monochrome_logs,
         args,
-        params.outdir,
-        params.input
+        params.outdir
     )
 
     //
     // WORKFLOW: Run main workflow
     //
-    NFCORE_OPENMETABAR (
-        PIPELINE_INITIALISATION.out.samplesheet
-    )
+    NFCORE_OPENMETABAR ()
+
     //
     // SUBWORKFLOW: Run completion tasks
     //
