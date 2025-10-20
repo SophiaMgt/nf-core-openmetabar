@@ -8,10 +8,11 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_openmetabar_pipeline'
 
 // IMPORT LOCAL MODULES
-include { PARSE_FILE             } from '../modules/local/parse_file'
+//include { PARSE_FILE             } from '../modules/local/parse_file'
 
 // IMPORT LOCAL SUBWORKFLOW
 include { DEMULTIPLEX            } from '../subworkflows/local/demultiplex'
+include { PARSE_WORFLOW          } from '../subworkflows/local/parse_file'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -42,40 +43,54 @@ workflow OPENMETABAR {
     //
     // ETAPE 1 : PARSE FILE
     //
-    PARSE_FILE(
+    PARSE_WORFLOW(
         ch_design
     )
-    fastq_list_ch  = PARSE_FILE.out.fastq_list
-    need_demux_ch  = PARSE_FILE.out.needs_demux
-    barcode_file_ch = PARSE_FILE.out.barcode_file
+    fastq_list_ch  = PARSE_WORFLOW.out.fastq_list
+    need_demux_ch  = PARSE_WORFLOW.out.needs_demux
+    barcode_file_ch = PARSE_WORFLOW.out.barcode_file
 
     //
     // ETAPE 2 Lire la valeur true/false du fichier needs_demux.txt
     //
-    demux_flag_ch = need_demux_ch.map { it.text.trim() == 'true' }
+    //demux_flag_ch = need_demux_ch.map { it.text.trim() == 'true' }
+    //demux_flag_ch = need_demux_ch.map { it }
 
     //
-    // Étape 3.v2 : filtrer les canaux pour DEMULPLEX uniquement si besoin
+    // Étape 3 : filtrer les canaux pour DEMULPLEX uniquement si besoin
     //
-    fastq_to_demux_ch = demux_flag_ch
+    // fastq_to_demux_ch = demux_flag_ch
+    //     .combine(fastq_list_ch)
+    //     .filter { demux_flag, fastq -> demux_flag }
+    //     .map { demux_flag, fastq -> fastq }
+
+    // barcode_to_demux_ch = demux_flag_ch
+    //     .combine(barcode_file_ch)
+    //     .filter { demux_flag, barcode -> demux_flag }
+    //     .map { demux_flag, barcode -> barcode }
+
+    // // fastq_to_demux_ch contient un fichier texte, pas directement un path fastq
+    // fastq_to_demux_ch = demux_flag_ch
+    //     .combine(fastq_list_ch)
+    //     .filter { demux_flag, fastq -> demux_flag }
+    //     .map { demux_flag, fastq -> fastq } // <== ici : on fait un vrai path file    
+    
+    // //
+    // // ETAPE 4 Lancer DEMULPLEX uniquement si nécessaire
+    // //
+    // DEMULTIPLEX(
+    //     fastq_to_demux_ch,
+    //     barcode_to_demux_ch
+    // )
+    //fastq_demux_ch = DEMULTIPLEX.out.minibar_out
+
+    // Étape 2 : si besoin, lancer le démultiplexage
+    fastq_to_demux_ch = need_demux_ch
         .combine(fastq_list_ch)
         .filter { demux_flag, fastq -> demux_flag }
         .map { demux_flag, fastq -> fastq }
 
-    barcode_to_demux_ch = demux_flag_ch
-        .combine(barcode_file_ch)
-        .filter { demux_flag, barcode -> demux_flag }
-        .map { demux_flag, barcode -> barcode }
-    //
-    // 3 Lancer DEMULPLEX uniquement si nécessaire
-    //
-    DEMULTIPLEX(
-        fastq_to_demux_ch,
-        barcode_to_demux_ch
-    )
-    fastq_demux_ch = DEMULTIPLEX.out.minibar_out
-
-
+    DEMULTIPLEX(fastq_to_demux_ch, barcode_file_ch)
 
     emit:
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
@@ -87,3 +102,5 @@ workflow OPENMETABAR {
     THE END
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
+

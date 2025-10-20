@@ -1,55 +1,42 @@
+// modules/local/parse_file/main.nf
 process PARSE_FILE {
+    tag "parse_file"
 
     input:
     path design_file
 
     output:
-    path "fastq_list.txt", emit: fastq_list
-    path "needs_demux.txt", emit: needs_demux
+    path "fastq_paths.txt", emit: fastq_paths        // contient 1 ligne par fastq
+    path "needs_demux_flag.txt", emit: needs_demux   // "true" ou "false"
     path "barcode.txt", optional: true, emit: barcode_file
 
     script:
     """
+    set -euo pipefail
     echo "[INFO] Parsing design file: ${design_file}"
 
-    # Take the fastq file(s) path
-    awk 'NR>1 && !/^#/ {print \$2}' ${design_file} | sort | uniq > fastq_list.txt
-    n=\$(wc -l < fastq_list.txt)
+    # Extraire les chemins FASTQ (colonne 2)
+    awk 'NR>1 && !/^#/ {print \$2}' ${design_file} | sort | uniq > fastq_paths.txt
+    n=\$(wc -l < fastq_paths.txt)
 
     if [ "\$n" -eq 1 ]; then
-        echo "[INFO] All samples use the same FASTQ — demultiplexing required."
-        echo "true" > needs_demux.txt
+        echo "[INFO] One FASTQ detected — demultiplexing required."
+        echo "true" > needs_demux_flag.txt
 
-        # Build barecode_file
-        # Exemple : on prend colonnes [sample_id, barcode]
-        awk 'NR>1 {print \$1, \$3, \$5, \$4, \$6}' OFS="\\t" ${design_file} > barcode.txt
-
+        # Générer barcode.txt si les colonnes barcodeF/R existent (col 3/4 ici : adapte si besoin)
+        header=\$(head -1 ${design_file})
+        if echo "\$header" | grep -q -i "barcodeF"; then
+            awk 'NR>1 {print \$1\"\\t\"\$3\"\\t\"\$5\"\\t\"\$4\"\\t\"\$6}' ${design_file} > barcode.txt || true
+        fi
     else
-        echo "[INFO] Multiple FASTQ detected — no demultiplexing."
-        echo "false" > needs_demux.txt
+        echo "[INFO] Multiple FASTQ detected — demultiplexing not required."
+        echo "false" > needs_demux_flag.txt
     fi
 
-    while read fq; do
-        abs_path=\$(readlink -f "\$fq")
-        ln -s "\$abs_path" .
-    done < fastq_list.txt
-
-        cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        build_barcode: "1.0"
-    END_VERSIONS
-    """
-
-    stub:
-    """
-    touch fastq_list.txt
-    touch needs_demux.txt
-    touch barcode.txt
-
+    # versions file (utile pour debugging)
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        build_barcode: "stub"
+        parse_file: "1.0"
     END_VERSIONS
     """
 }
-
