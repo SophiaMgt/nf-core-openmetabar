@@ -29,6 +29,9 @@ process MINIBAR {
         ../${barcode} \\
         ../${fastq} \\
         ${args_list.join(' ')}
+    
+    rm sample_unk* sample_Multiple*
+    cd ..
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
