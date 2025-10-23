@@ -13,6 +13,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_open
 // IMPORT LOCAL SUBWORKFLOW
 include { DEMULTIPLEX            } from '../subworkflows/local/demultiplex'
 include { PARSE_WORFLOW          } from '../subworkflows/local/parse_file'
+include { CLUSTER_TAXO           } from '../subworkflows/local/cluster_taxo'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -50,47 +51,31 @@ workflow OPENMETABAR {
     need_demux_ch  = PARSE_WORFLOW.out.needs_demux
     barcode_file_ch = PARSE_WORFLOW.out.barcode_file
 
-    //
-    // ETAPE 2 Lire la valeur true/false du fichier needs_demux.txt
-    //
-    //demux_flag_ch = need_demux_ch.map { it.text.trim() == 'true' }
-    //demux_flag_ch = need_demux_ch.map { it }
-
-    //
-    // Étape 3 : filtrer les canaux pour DEMULPLEX uniquement si besoin
-    //
-    // fastq_to_demux_ch = demux_flag_ch
-    //     .combine(fastq_list_ch)
-    //     .filter { demux_flag, fastq -> demux_flag }
-    //     .map { demux_flag, fastq -> fastq }
-
-    // barcode_to_demux_ch = demux_flag_ch
-    //     .combine(barcode_file_ch)
-    //     .filter { demux_flag, barcode -> demux_flag }
-    //     .map { demux_flag, barcode -> barcode }
-
-    // // fastq_to_demux_ch contient un fichier texte, pas directement un path fastq
-    // fastq_to_demux_ch = demux_flag_ch
-    //     .combine(fastq_list_ch)
-    //     .filter { demux_flag, fastq -> demux_flag }
-    //     .map { demux_flag, fastq -> fastq } // <== ici : on fait un vrai path file    
-    
-    // //
-    // // ETAPE 4 Lancer DEMULPLEX uniquement si nécessaire
-    // //
-    // DEMULTIPLEX(
-    //     fastq_to_demux_ch,
-    //     barcode_to_demux_ch
-    // )
-    //fastq_demux_ch = DEMULTIPLEX.out.minibar_out
-
     // Étape 2 : si besoin, lancer le démultiplexage
     fastq_to_demux_ch = need_demux_ch
         .combine(fastq_list_ch)
         .filter { demux_flag, fastq -> demux_flag }
         .map { demux_flag, fastq -> fastq }
 
-    DEMULTIPLEX(fastq_to_demux_ch, barcode_file_ch)
+    DEMULTIPLEX(
+        fastq_to_demux_ch, 
+        barcode_file_ch
+    )
+    fastq_for_lotus = DEMULTIPLEX.out.minibar_out
+
+    Channel
+        .fromPath(params.refDB)
+        .set { db_ch }
+    Channel
+        .fromPath(params.tax4refDB)
+        .set { tax_ch }
+    
+    CLUSTER_TAXO(
+        fastq_for_lotus,
+        db_ch,
+        tax_ch
+    )
+    
 
     emit:
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
