@@ -10,6 +10,7 @@ process MINIBAR {
 
     output:
     path "output_minibar", emit: minibar_results
+    path "minibar_summary.csv"
     //path "versions.yml", emit: versions
 
     script:
@@ -31,6 +32,15 @@ process MINIBAR {
         ${args_list.join(' ')}
     
     rm sample_unk* sample_Multiple*
+
+    # ==== Résumé demux ====
+    echo "sample,total_reads" > ../minibar_summary.csv
+    for f in sample_*.fastq; do
+        sample_name=\$(basename "\$f" .fastq)
+        nb=\$(awk 'NR%4==1' "\$f" | wc -l)
+        echo "\${sample_name},\${nb}" >> ../minibar_summary.csv
+    done
+
     cd ..
 
     cat <<-END_VERSIONS > versions.yml

@@ -6,7 +6,6 @@ workflow PARSE_WORFLOW {
     design_file
 
     main:
-    // exécute le process qui produit fastq_paths.txt, needs_demux_flag.txt et éventuellement barcode.txt
     PARSE_FILE(design_file)
 
     //

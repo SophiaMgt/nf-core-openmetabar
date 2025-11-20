@@ -10,14 +10,42 @@ process PARSE_FILE {
     path "needs_demux_flag.txt", emit: needs_demux   // "true" ou "false"
     path "barcode.txt", optional: true, emit: barcode_file
 
+
     script:
     """
     set -euo pipefail
     echo "[INFO] Parsing design file: ${design_file}"
 
+    # Vérification des colonnes
+    header=\$(head -1 ${design_file})
+    required_cols=("SampleID" "fastq_path" "barcodeF" "barcodeR" "primerF" "primerR")
+    missing_cols=()
+    for col in "\${required_cols[@]}"; do
+        if ! echo "\$header" | grep -qw "\$col"; then
+            missing_cols+=("\$col")
+        fi
+    done
+
+    if [ \${#missing_cols[@]} -gt 0 ]; then
+        echo "[ERROR] Missing required column(s): \${missing_cols[@]}"
+        exit 1
+    fi
+
+    # Nettoyage SampleID : '-' → '_'
+    tmp_clean="design_file_cleaned.txt"
+    echo "[INFO] Cleaning SampleID column (replacing '-' by '_')"
+
+    awk -v OFS="\\t" 'NR==1 {print; next} {gsub(/-/, "_", \$1); print}' ${design_file} > \$tmp_clean
+
+    # Warning si modification des SampleID
+    if ! diff <(cut -f1 ${design_file} | tail -n +2) <(cut -f1 \$tmp_clean | tail -n +2) >/dev/null 2>&1; then
+        echo "[INFO] SampleID(s) containing '-' were replaced by '_'"
+    fi
+
     # Extraire les chemins FASTQ (colonne 2)
     awk 'NR>1 && !/^#/ {print \$2}' ${design_file} | sort | uniq > fastq_paths.txt
     n=\$(wc -l < fastq_paths.txt)
+    echo "[INFO] Found \$n unique FASTQ path(s)."
 
     if [ "\$n" -eq 1 ]; then
         echo "[INFO] One FASTQ detected — demultiplexing required."
@@ -40,3 +68,4 @@ process PARSE_FILE {
     END_VERSIONS
     """
 }
+

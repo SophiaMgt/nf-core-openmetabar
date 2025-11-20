@@ -7,7 +7,8 @@ process LOTUS3 {
     containerOptions = "--bind ${projectDir}:${projectDir}"
 
     input:
-    path fastq //demux
+    path design
+    val fastq 
     path db
     path tax
 
@@ -31,15 +32,23 @@ process LOTUS3 {
 
     cp -r ${projectDir}/modules/local/lotus3/DB .
     cp -r ${projectDir}/sdm .
+    
+    mkdir -p fastq_folder
+    echo "[INFO] Copying FASTQ files:"
+    for f in ${fastq.join(' ')}; do
+        echo "  - \$f"
+        cp \$f fastq_folder/
+    done
 
+    echo "[INFO] Running LOTUS3..."
     # 1 - mapping file
-    lotus3 -create_map mymap.txt -i $fastq/
+    #lotus3 -create_map mymap.txt -i fastq_folder/
+    bash ${projectDir}/scripts/build_mapping.sh $design $params.demux 
 
     # 2 - lotus3
-
     lotus3 \\
         -m mymap.txt \\
-        -i $fastq/ \\
+        -i fastq_folder/ \\
         -o result_lotus3 \\
         -s sdm/sdm_ONT_LSSU.txt \\
         -refDB $db -tax4refDB $tax \\
