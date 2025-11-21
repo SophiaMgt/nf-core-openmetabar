@@ -49,7 +49,7 @@ workflow OPENMETABAR {
         ch_design
     )
     fastq_list_ch  = PARSE_WORFLOW.out.fastq_list
-    need_demux_ch  = PARSE_WORFLOW.out.needs_demux // enlever ça et mettre un params.demux = true or false si on veut demux ou non
+    //need_demux_ch  = PARSE_WORFLOW.out.needs_demux // enlever ça et mettre un params.demux = true or false si on veut demux ou non
     barcode_file_ch = PARSE_WORFLOW.out.barcode_file
 
     // Etape filtre du fastq si on veut
@@ -65,10 +65,15 @@ workflow OPENMETABAR {
     //     fastq_to_filter.view()
     // }
 
-    fastq_to_demux_ch = need_demux_ch
-        .combine(fastq_list_ch)
-        .filter { demux_flag, fastq -> demux_flag }
-        .map { demux_flag, fastq -> fastq }
+    // POUR need_demux_ch
+    // fastq_to_demux_ch = need_demux_ch
+    //     .combine(fastq_list_ch)
+    //     .filter { demux_flag, fastq -> demux_flag }
+    //     .map { demux_flag, fastq -> fastq }
+    // new new new new
+    // Utiliser directement params.demux au lieu de need_demux_ch
+    fastq_to_demux_ch = fastq_list_ch
+        .filter { fastq -> params.demux }   
 
     DEMULTIPLEX(
         fastq_to_demux_ch, 

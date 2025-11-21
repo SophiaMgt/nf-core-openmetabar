@@ -6,20 +6,19 @@ process PARSE_FILE {
     path design_file
 
     output:
-    path "fastq_paths.txt", emit: fastq_paths        // contient 1 ligne par fastq
-    path "needs_demux_flag.txt", emit: needs_demux   // "true" ou "false"
+    path "fastq_paths.txt", emit: fastq_paths        // 1 FASTQ par ligne
     path "barcode.txt", optional: true, emit: barcode_file
-
 
     script:
     """
     set -euo pipefail
     echo "[INFO] Parsing design file: ${design_file}"
 
-    # Vérification des colonnes
+    # Vérification des colonnes obligatoires
     header=\$(head -1 ${design_file})
-    required_cols=("SampleID" "fastq_path" "barcodeF" "barcodeR" "primerF" "primerR")
+    required_cols=("Sample_ID" "fastq_path" "barcodeF" "barcodeR" "primerF" "primerR")
     missing_cols=()
+
     for col in "\${required_cols[@]}"; do
         if ! echo "\$header" | grep -qw "\$col"; then
             missing_cols+=("\$col")
@@ -33,39 +32,31 @@ process PARSE_FILE {
 
     # Nettoyage SampleID : '-' → '_'
     tmp_clean="design_file_cleaned.txt"
-    echo "[INFO] Cleaning SampleID column (replacing '-' by '_')"
-
-    awk -v OFS="\\t" 'NR==1 {print; next} {gsub(/-/, "_", \$1); print}' ${design_file} > \$tmp_clean
-
-    # Warning si modification des SampleID
-    if ! diff <(cut -f1 ${design_file} | tail -n +2) <(cut -f1 \$tmp_clean | tail -n +2) >/dev/null 2>&1; then
-        echo "[INFO] SampleID(s) containing '-' were replaced by '_'"
+    if grep -qP '^(?!Sample_ID).*-' "${design_file}"; then
+        echo "[INFO] Cleaning Sample_ID column (replacing '-' by '_')"
+        awk -v OFS="\\t" 'NR==1{print;next}{gsub(/-/, "_", \$1); print}' "${design_file}" > "\$tmp_clean"
+        design_file="\$tmp_clean"
     fi
 
-    # Extraire les chemins FASTQ (colonne 2)
-    awk 'NR>1 && !/^#/ {print \$2}' ${design_file} | sort | uniq > fastq_paths.txt
+    # Extraire les chemins FASTQ (col 2)
+    awk 'NR>1 && !/^#/ {print \$2}' "${design_file}" | sort | uniq > fastq_paths.txt
     n=\$(wc -l < fastq_paths.txt)
-    echo "[INFO] Found \$n unique FASTQ path(s)."
+    echo "[INFO] Extracted \$n FASTQ path(s)."
 
-    if [ "\$n" -eq 1 ]; then
-        echo "[INFO] One FASTQ detected — demultiplexing required."
-        echo "true" > needs_demux_flag.txt
+    # Créer barcode.txt seulement si demultiplexage demandé
+    if [ "${params.demux}" = "true" ]; then
+        echo "[INFO] Demultiplexing requested → generating barcode.txt"
 
-        # Générer barcode.txt si les colonnes barcodeF/R existent (col 3/4 ici : adapte si besoin)
-        header=\$(head -1 ${design_file})
-        if echo "\$header" | grep -q -i "barcodeF"; then
-            awk 'NR>1 {print \$1\"\\t\"\$3\"\\t\"\$5\"\\t\"\$4\"\\t\"\$6}' ${design_file} > barcode.txt || true
-        fi
+        # Sample_ID | barcodeF | primerF | barcodeR | primerR
+        awk 'NR>1 {print \$1"\\t"\$3"\\t"\$5"\\t"\$4"\\t"\$6}' "${design_file}" > barcode.txt
     else
-        echo "[INFO] Multiple FASTQ detected — demultiplexing not required."
-        echo "false" > needs_demux_flag.txt
+        echo "[INFO] Demultiplexing disabled → no barcode.txt generated"
     fi
 
-    # versions file (utile pour debugging)
+    # Versions (debug)
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        parse_file: "1.0"
+        parse_file: "1.1"
     END_VERSIONS
     """
 }
-

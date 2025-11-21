@@ -25,8 +25,8 @@ workflow PARSE_WORFLOW {
     //
     // Convertir needs_demux_flag.txt -> Channel<boolean>
     //
-    ch_needs_demux = PARSE_FILE.out.needs_demux
-        .map { it.text.trim().toLowerCase() == 'true' }
+    // ch_needs_demux = PARSE_FILE.out.needs_demux
+    //     .map { it.text.trim().toLowerCase() == 'true' }
 
     //
     // barcode_file est déjà un path s'il existe ; on le renvoie tel quel
@@ -35,6 +35,6 @@ workflow PARSE_WORFLOW {
 
     emit:
     fastq_list  = ch_fastq
-    needs_demux = ch_needs_demux
+    // needs_demux = ch_needs_demux
     barcode_file = ch_barcode
 }

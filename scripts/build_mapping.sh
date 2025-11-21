@@ -2,50 +2,40 @@
 set -euo pipefail
 
 design_file="$1"
-demux="$2"             # true / false
+demux="$2"
 output="${3:-mymap.txt}"
 
-if [[ ! -f "$design_file" ]]; then
-    echo "[ERROR] Design file not found: $design_file" >&2
-    exit 1
-fi
+# Dossier contenant les FASTQ copiés par Nextflow
+fastq_dir="fastq_folder"
 
-# Detect delimiter automatically
-delimiter=$(head -n1 "$design_file" | grep -q "," && echo "," || echo -e "\t")
-echo "[INFO] Using delimiter: '$delimiter'"
+# Nettoyer les retours Windows
+sed -i 's/\r$//' "$design_file"
 
-# Read header
-header=$(head -n1 "$design_file")
-IFS="$delimiter" read -r -a cols <<< "$header"
-
-# Write mapping header
+# Header
 echo -e "#SampleID\tForwardPrimer\tReversePrimer\tfastqFile" > "$output"
+IFS=$'\t'
 
-# Metadata columns (after column 6)
-for ((i=6; i<${#cols[@]}; i++)); do
-    echo -ne "\t${cols[$i]}" >> "$output"
-done
-echo "" >> "$output"
+{
+    read -r header_line
+    while read -r Sample_ID fastq_path barcodeF barcodeR primerF primerR; do
+        [[ -z "$Sample_ID" ]] && continue
 
-# Process each line
-tail -n +2 "$design_file" | while IFS="$delimiter" read -r SampleID path barcodeF barcodeR primerF primerR rest; do
+        # Déterminer FASTQ
+        if [[ "$demux" == "true" ]]; then
+            fq="sample_${Sample_ID}_filtered.fastq"
+        else
+            fq="$(basename "$fastq_path")"
+        fi
 
-    # --------------- CASE 1 : demultiplexed -----------------
-    if [[ "$demux" == "true" ]]; then
-        fq="sample_${SampleID}_filtered.fastq"
-    else
-        # --------------- CASE 2 : NOT demultiplexed ----------
-        fq="$path"
-    fi
+        # Vérifier si le FASTQ est présent dans fastq_folder
+        if [[ ! -f "$fastq_dir/$fq" ]]; then
+            echo "[WARN] FASTQ not found in $fastq_dir → skipping: $fq" >&2
+            continue
+        fi
 
-    echo -ne "${SampleID}\t${primerF}\t${primerR}\t${fq}" >> "$output"
-
-    # Add metadata columns
-    if [[ ! -z "${rest:-}" ]]; then
-        echo -ne "\t${rest}"
-    fi
-
-    echo "" >> "$output"
-done
+        # Écrire la ligne si OK
+        printf "%s\t%s\t%s\t%s\n" "$Sample_ID" "$primerF" "$primerR" "$fq"
+    done
+} < "$design_file" >> "$output"
 
 echo "[INFO] Mapping file created: $output"
