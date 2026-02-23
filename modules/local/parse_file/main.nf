@@ -8,6 +8,7 @@ process PARSE_FILE {
     output:
     path "fastq_paths.txt", emit: fastq_paths        // 1 FASTQ par ligne
     path "barcode.txt", optional: true, emit: barcode_file
+    path "design_file_cleaned.txt" , emit: design_file
 
     script:
     """
@@ -32,14 +33,11 @@ process PARSE_FILE {
 
     # Nettoyage SampleID : '-' → '_'
     tmp_clean="design_file_cleaned.txt"
-    if grep -qP '^(?!Sample_ID).*-' "${design_file}"; then
-        echo "[INFO] Cleaning Sample_ID column (replacing '-' by '_')"
-        awk -v OFS="\\t" 'NR==1{print;next}{gsub(/-/, "_", \$1); print}' "${design_file}" > "\$tmp_clean"
-        design_file="\$tmp_clean"
-    fi
+    awk -v OFS="\t" 'NR==1{print;next}{gsub(/-/, "_", \$1); print}' "${design_file}" > "\$tmp_clean"
+    design_file="\$tmp_clean"
 
     # Extraire les chemins FASTQ (col 2)
-    awk 'NR>1 && !/^#/ {print \$2}' "${design_file}" | sort | uniq > fastq_paths.txt
+    awk 'NR>1 && !/^#/ {print \$2}' "\$design_file" | sort | uniq > fastq_paths.txt
     n=\$(wc -l < fastq_paths.txt)
     echo "[INFO] Extracted \$n FASTQ path(s)."
 
@@ -48,7 +46,7 @@ process PARSE_FILE {
         echo "[INFO] Demultiplexing requested → generating barcode.txt"
 
         # Sample_ID | barcodeF | primerF | barcodeR | primerR
-        awk 'NR>1 {print \$1"\\t"\$3"\\t"\$5"\\t"\$4"\\t"\$6}' "${design_file}" > barcode.txt
+        awk 'NR>1 {print \$1"\\t"\$3"\\t"\$5"\\t"\$4"\\t"\$6}' "\$design_file" > barcode.txt
     else
         echo "[INFO] Demultiplexing disabled → no barcode.txt generated"
     fi

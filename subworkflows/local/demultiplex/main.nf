@@ -27,6 +27,7 @@ workflow DEMULTIPLEX {
     MINIBAR(fastq, barcode)
 
     emit: 
-    minibar_out = MINIBAR.out.minibar_results
+    minibar_out_no_trim = MINIBAR.out.minibar_results
+    minibar_out = MINIBAR.out.fastq_trim
     //versions    = MINIBAR.out.versions
 }

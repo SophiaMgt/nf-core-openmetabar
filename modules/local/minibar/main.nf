@@ -10,6 +10,7 @@ process MINIBAR {
 
     output:
     path "output_minibar", emit: minibar_results
+    path "fastq_trim", emit : fastq_trim
     path "minibar_summary.csv"
     //path "versions.yml", emit: versions
 
@@ -41,7 +42,14 @@ process MINIBAR {
         echo "\${sample_name},\${nb}" >> ../minibar_summary.csv
     done
 
+    for f in sample_*; do
+    mv "\$f" "\$(echo "\$f" | sed 's/^sample_//')"
+    done
+
     cd ..
+
+    ## script filtre demux
+    bash ${projectDir}/scripts/filter_by_expected_barcode.sh ${barcode}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

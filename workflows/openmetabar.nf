@@ -13,8 +13,10 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_open
 // IMPORT LOCAL SUBWORKFLOW
 include { DEMULTIPLEX            } from '../subworkflows/local/demultiplex'
 include { PARSE_WORFLOW          } from '../subworkflows/local/parse_file'
+include { MAPPING_FILE           } from '../subworkflows/local/mapping_file'
 include { CLUSTER_TAXO           } from '../subworkflows/local/cluster_taxo'
 include { FILTER                 } from '../subworkflows/local/filter'
+include { REPORT            } from '../modules/local/report/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,8 +51,8 @@ workflow OPENMETABAR {
         ch_design
     )
     fastq_list_ch  = PARSE_WORFLOW.out.fastq_list
-    //need_demux_ch  = PARSE_WORFLOW.out.needs_demux // enlever ça et mettre un params.demux = true or false si on veut demux ou non
-    barcode_file_ch = PARSE_WORFLOW.out.barcode_file
+    barcode_file_ch = PARSE_WORFLOW.out.barcode_file // besoin pour minibar et filtre barcode
+    design_file = PARSE_WORFLOW.out.design_file
 
     // Etape filtre du fastq si on veut
     // Ensuite selon la techno et marqueur
@@ -79,9 +81,9 @@ workflow OPENMETABAR {
         fastq_to_demux_ch, 
         barcode_file_ch
     )
-    fastq_to_filter = DEMULTIPLEX.out.minibar_out
+    fastq_to_filter = DEMULTIPLEX.out.minibar_out //trim
     fastq_to_filter.view()
-
+    
     files_ch = fastq_to_filter.flatMap { folder ->
         println "Dossier reçu : $folder"
         def files = new File(folder.toString()).listFiles()   // <-- .toString() ici
@@ -97,8 +99,10 @@ workflow OPENMETABAR {
         params.expected_lengths
     )
     fastq_for_lotus = FILTER.out.filtered_out
-    fastq_grouped_ch = fastq_for_lotus.collect()
-    fastq_grouped_ch.view()
+    // fastq_for_lotus.view()  -> chaque fichier un après l'autre = channel STREAM
+    fastq_for_lotus.collect().set { fastq_grouped_ch } // pour donner tout en même temps
+    //fastq_grouped_ch.view { "GROUPE FASTQ : $it" }
+    // [path1,path2,path3...]
 
     Channel
         .fromPath(params.refDB)
@@ -106,10 +110,31 @@ workflow OPENMETABAR {
     Channel
         .fromPath(params.tax4refDB)
         .set { tax_ch }
-    
+
+    map_out = MAPPING_FILE(
+                fastq_grouped_ch,
+                design_file
+            )
+    map_out.map1.view { "output FILES to LOTUS3 → $it" }
+    //map_out.map2.view { "output FILES to LOTUS3 → $it" }
+    map_out.fastq_folder.view { "output FILES to LOTUS3 → $it" }
+
+    // maps_ch = Channel
+    //     .from([map_out.map1, map_out.map2])
+    //     .flatMap { ch -> ch }
+
+    // maps_ch.view { "[DEBUG] to CLUSTER_TAXO → $it" }
+
+    // combined_ch = maps_ch.map { map_file -> 
+    //     tuple(map_file, map_out.fastq_folder)
+    // }
+
+    // combined_ch.view { "[DEBUG] combined_ch going to CLUSTER_TAXO → $it" }
+
     CLUSTER_TAXO(
-        ch_design,
-        fastq_grouped_ch,
+        map_out.map1,
+        //map_out.map2,
+        map_out.fastq_folder,
         db_ch,
         tax_ch
     )
