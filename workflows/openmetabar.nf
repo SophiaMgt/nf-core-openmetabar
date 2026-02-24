@@ -11,12 +11,20 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_open
 //include { PARSE_FILE             } from '../modules/local/parse_file'
 
 // IMPORT LOCAL SUBWORKFLOW
-include { DEMULTIPLEX            } from '../subworkflows/local/demultiplex'
-include { PARSE_WORFLOW          } from '../subworkflows/local/parse_file'
-include { MAPPING_FILE           } from '../subworkflows/local/mapping_file'
-include { CLUSTER_TAXO           } from '../subworkflows/local/cluster_taxo'
-include { FILTER                 } from '../subworkflows/local/filter'
-include { REPORT            } from '../modules/local/report/main'
+// include { DEMULTIPLEX            } from '../subworkflows/local/demultiplex'
+// include { PARSE_WORFLOW          } from '../subworkflows/local/parse_file'
+// include { MAPPING_FILE           } from '../subworkflows/local/mapping_file'
+// include { CLUSTER_TAXO           } from '../subworkflows/local/cluster_taxo'
+// include { FILTER                 } from '../subworkflows/local/filter'
+// include { REPORT            } from '../modules/local/report/main'
+
+
+include { ONT_IDMABIO             } from '../subworkflows/local/ont_idmabio'
+// include { ONT_COI                 } from '../subworkflows/local/ont_coi'
+// include { PACBIO_LSU_ITS          } from '../subworkflows/local/pacbio_lsu_its'
+// include { PACBIO_16S              } from '../subworkflows/local/pacbio_16s'
+// include { ILLUMINA_LSU_ITS_16S    } from '../subworkflows/local/illumina_lsu_its_16s'
+
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -44,6 +52,37 @@ workflow OPENMETABAR {
             newLine: true
         ).set { ch_collated_versions }
 
+    Channel
+        .fromPath(params.refDB)
+        .set { db_ch }
+    Channel
+        .fromPath(params.tax4refDB)
+        .set { tax_ch }
+
+    //
+    // RE STRUCTURE
+    //
+    if (params.techno == 'ont' && params.maker == 'COI-idmabio') {
+        ONT_IDMABIO(ch_design, params.expected_lengths, db_ch, tax_ch)
+    }
+    
+    if (params.techno == 'ont' && params.maker == 'COI') {
+        ONT_COI(ch_design)
+    }
+    
+    if (params.techno == 'pacbio' && params.maker == 'LSU' || params.maker == 'ITS') {
+        PACBIO_LSU_ITS(ch_design)
+    }
+
+    if (params.techno == 'pacbio' && params.maker == '16s') {
+        PACBIO_16S(ch_design)
+    }
+
+    if (params.techno == 'illumina') {
+        ILLUMINA_LSU_ITS_16S(ch_design)
+    }
+
+/*
     //
     // ETAPE 1 : PARSE FILE
     //
@@ -138,7 +177,7 @@ workflow OPENMETABAR {
         db_ch,
         tax_ch
     )
-
+*/
     emit:
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 

@@ -5,7 +5,6 @@ include { LOTUS3 as LOTUS_part1 } from '../../../modules/local/lotus3/main'
 workflow CLUSTER_TAXO {
     take:
     map1
-    //map2
     fastq
     db
     tax
