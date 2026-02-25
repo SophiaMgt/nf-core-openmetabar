@@ -49,6 +49,7 @@ process PARSE_FILE {
         awk 'NR>1 {print \$1"\\t"\$3"\\t"\$5"\\t"\$4"\\t"\$6}' "\$design_file" > barcode.txt
     else
         echo "[INFO] Demultiplexing disabled → no barcode.txt generated"
+        touch barcode.txt
     fi
 
     # Versions (debug)

@@ -19,7 +19,7 @@ include { LENGTHS_FILTER } from '../../../modules/local/filter/lengths'
 workflow FILTER {
 
   take:
-  fastq_demux
+  fastq
   expected_lengths
 
   main:
@@ -31,7 +31,7 @@ workflow FILTER {
 
     //fastq_demux.view { fq -> "FASTQ FILE sub SONT : $fq" }
 
-  LENGTHS_FILTER(fastq_demux,expected_lengths)
+  LENGTHS_FILTER(fastq,expected_lengths)
 
   emit: 
   filtered_out = LENGTHS_FILTER.out.filtered_fastq

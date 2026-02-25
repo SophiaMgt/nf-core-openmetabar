@@ -22,7 +22,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_open
 include { ONT_IDMABIO             } from '../subworkflows/local/ont_idmabio'
 // include { ONT_COI                 } from '../subworkflows/local/ont_coi'
 // include { PACBIO_LSU_ITS          } from '../subworkflows/local/pacbio_lsu_its'
-// include { PACBIO_16S              } from '../subworkflows/local/pacbio_16s'
+include { PACBIO_16S              } from '../subworkflows/local/pacbio_16s'
 // include { ILLUMINA_LSU_ITS_16S    } from '../subworkflows/local/illumina_lsu_its_16s'
 
 
@@ -62,24 +62,24 @@ workflow OPENMETABAR {
     //
     // RE STRUCTURE
     //
-    if (params.techno == 'ont' && params.maker == 'COI-idmabio') {
+    if (params.techno == 'ont' && params.marker == 'COI-idmabio') {
         ONT_IDMABIO(ch_design, params.expected_lengths, db_ch, tax_ch)
     }
     
-    if (params.techno == 'ont' && params.maker == 'COI') {
+    if (params.techno == 'ont' && params.marker == 'COI') {
         ONT_COI(ch_design)
     }
     
-    if (params.techno == 'pacbio' && params.maker == 'LSU' || params.maker == 'ITS') {
-        PACBIO_LSU_ITS(ch_design)
+    if (params.techno == 'pacbio' && params.marker == 'LSU' || params.marker == 'ITS') {
+        PACBIO_LSU_ITS(ch_design) // NextITS
     }
 
-    if (params.techno == 'pacbio' && params.maker == '16s') {
-        PACBIO_16S(ch_design)
+    if (params.techno == 'pacbio' && params.marker == '16s') {
+        PACBIO_16S(ch_design, db_ch, tax_ch)
     }
 
     if (params.techno == 'illumina') {
-        ILLUMINA_LSU_ITS_16S(ch_design)
+        ILLUMINA_LSU_ITS_16S(ch_design, db_ch, tax_ch)
     }
 
 /*
@@ -98,7 +98,7 @@ workflow OPENMETABAR {
     // Si ont - idmabio -> demux minibar et dès qu'on a les fastq => on fait un fichier mapping file pour lancer ensuite lotus3
 
     // Étape 2 demux si idmabio
-    // if (params.techno == 'ont' && params.maker == 'COI-idmabio' && params.demultiplexing == 'true') {
+    // if (params.techno == 'ont' && params.marker == 'COI-idmabio' && params.demultiplexing == 'true') {
     //     DEMULTIPLEX(
     //         fastq_list_ch, 
     //         barcode_file_ch)
