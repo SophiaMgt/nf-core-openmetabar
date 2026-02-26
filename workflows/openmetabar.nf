@@ -64,7 +64,7 @@ workflow OPENMETABAR {
     //
     if (params.techno == 'ont' && params.marker == 'COI-idmabio') {
         ONT_IDMABIO(ch_design, params.expected_lengths, db_ch, tax_ch)
-    }
+    } // OK
     
     if (params.techno == 'ont' && params.marker == 'COI') {
         ONT_COI(ch_design)
@@ -76,7 +76,7 @@ workflow OPENMETABAR {
 
     if (params.techno == 'pacbio' && params.marker == '16s') {
         PACBIO_16S(ch_design, db_ch, tax_ch)
-    }
+    } // OK
 
     if (params.techno == 'illumina') {
         ILLUMINA_LSU_ITS_16S(ch_design, db_ch, tax_ch)

@@ -33,6 +33,10 @@ workflow FILTER {
 
   LENGTHS_FILTER(fastq,expected_lengths)
 
+  // Filtre qualité à ajouter
+
+  // Filtre séquence codante à ajouter
+
   emit: 
   filtered_out = LENGTHS_FILTER.out.filtered_fastq
 
