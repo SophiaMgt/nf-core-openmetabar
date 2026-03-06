@@ -1,7 +1,7 @@
-// subworkflows/local/ont_idmabio/main.nf
+// subworkflows/local/pacbio_16s/main.nf
 
 //include { DEMULTIPLEX        } from '../../../modules/local/demultiplex'
-include { MINIBAR } from '../../../modules/local/minibar/main'
+//include { MINIBAR } from '../../../modules/local/minibar/main'
 
 //include { PARSE_WORFLOW      } from '../subworkflows/local/parse_file'
 include { PARSE_FILE } from '../../../modules/local/parse_file/main'
@@ -15,21 +15,17 @@ include { LOTUS3  } from '../../../modules/local/lotus3/main'
 include { FILTER             } from '../filter'
 //include { REPORT             } from '../modules/local/report/main'
 
-workflow ONT_IDMABIO {
+workflow PACBIO_LSU_ITS {
 
     take:
     ch_design
-    expected_lengths
     db_ch
     tax_ch
 
     main:
 
-    /*
-    * ETAPE 1 : PARSE
-    */
     PARSE_FILE(ch_design)
-    barcode_file_ch = PARSE_FILE.out.barcode_file
+    barcode_file_ch = PARSE_FILE.out.barcode_file // fichier vide
     design_file     = PARSE_FILE.out.design_file
     // Convertir fastq_paths.txt -> Channel<path> (un path par élément)
     fastq_list_ch = PARSE_FILE.out.fastq_paths
@@ -41,44 +37,18 @@ workflow ONT_IDMABIO {
             tuple(parts.collect { file(it.trim()) })
     }
     fastq_list_ch.view { "fastq_list_ch → $it" } 
-
-    /*
-    * ETAPE 2 : DEMULTIPLEX
-    */
-    if (params.demux) {
-        MINIBAR(fastq_list_ch, barcode_file_ch)
-        fastq_to_filter = MINIBAR.out.fastq_trim
-    } else {
-        fastq_to_filter = fastq_list_ch
-    }
-    //fastq_to_filter.view { "fastq_to_filter → $it" }
-
-    /*
-    * ETAPE 3 : TRANSFORM DOSSIER OUTPUT MINIBAR -> FICHIERS
-    */
-
-    files_ch = fastq_to_filter.flatMap { item ->
-        if (item.isDirectory()) {
-            return file("${item}/*.fastq")
-        }
-        else {
-            return item
-        }
-    }
-    //files_ch.view { "files_ch → $it" } 
-
-
+    
     /*
     * ETAPE 4 : FILTER
     */
     if (params.filter) {
-        FILTER(files_ch, params.expected_lengths)
+        FILTER(fastq_list_ch, params.expected_lengths)
         fastq_for_lotus = FILTER.out.filtered_out
         fastq_grouped_ch = fastq_for_lotus
             .collect() // pour donner tout en même temps
             .map { list -> list.flatten() }
     } else {
-        fastq_grouped_ch = files_ch
+        fastq_grouped_ch = fastq_list_ch
             .collect()
             .map { list -> list.flatten() }
     }
@@ -88,16 +58,7 @@ workflow ONT_IDMABIO {
     * ETAPE 5 : ANALYSE TAXO
     */
     
-    BUILD_MAPPING_FILE(fastq_grouped_ch, design_file)
-    BUILD_MAPPING_FILE.out.mapping_file.view { "MAP → $it" }
-    BUILD_MAPPING_FILE.out.fastq_folder.view { "FASTQ → $it" }
-
-    LOTUS3(
-        BUILD_MAPPING_FILE.out.mapping_file,
-        BUILD_MAPPING_FILE.out.fastq_folder,
-        db_ch,
-        tax_ch
-    )
+    // NEXTITS
 
     /*
     * ETAPE 5 : REPORT

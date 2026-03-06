@@ -29,27 +29,28 @@ workflow PACBIO_16S {
     design_file     = PARSE_FILE.out.design_file
     // Convertir fastq_paths.txt -> Channel<path> (un path par élément)
     fastq_list_ch = PARSE_FILE.out.fastq_paths
-        .splitText()          // splitText lit le fichier ligne à ligne
+        .splitText()
         .map { line -> line.trim() }
-        .filter { it }        // retirer lignes vides
-        .map { pathStr ->
-            def p = file(pathStr)
-            if (!p.exists()) log.warn "[WARN] FASTQ not found: ${pathStr}"
-            return p
-        }
-        .unique()
-    fastq_list_ch.view { "fastq_list_ch → $it" }
+        .filter { it }
+        .map { line ->
+            def parts = line.split(',')
+            tuple(parts.collect { file(it.trim()) })
+    }
+    fastq_list_ch.view { "fastq_list_ch → $it" } 
     
     /*
     * ETAPE 4 : FILTER
     */
-
     if (params.filter) {
         FILTER(fastq_list_ch, params.expected_lengths)
         fastq_for_lotus = FILTER.out.filtered_out
-        fastq_for_lotus.collect().set { fastq_grouped_ch } // pour donner tout en même temps
+        fastq_grouped_ch = fastq_for_lotus
+            .collect() // pour donner tout en même temps
+            .map { list -> list.flatten() }
     } else {
-        fastq_grouped_ch = fastq_list_ch.collect()
+        fastq_grouped_ch = fastq_list_ch
+            .collect()
+            .map { list -> list.flatten() }
     }
     fastq_grouped_ch.view { "fastq_grouped_ch → $it" }
 

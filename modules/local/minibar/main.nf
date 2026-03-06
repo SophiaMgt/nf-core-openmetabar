@@ -6,7 +6,7 @@ process MINIBAR {
 
     input:
     path fastq           // fichier fastq réel (staged par Nextflow)
-    path barcode         // fichier barcode (staged), si optional gérer côté appel
+    path barcode         // fichier barcode
 
     output:
     path "output_minibar", emit: minibar_results
