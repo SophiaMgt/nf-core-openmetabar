@@ -41,7 +41,7 @@ process PARSE_FILE {
     n=\$(wc -l < fastq_paths.txt)
     echo "[INFO] Extracted \$n FASTQ path(s)."
 
-    # Créer barcode.txt seulement si demultiplexage demandé
+    # Créer barcode.txt pour demultiplexage
     if [ "${params.demux}" = "true" ]; then
         echo "[INFO] Demultiplexing requested → generating barcode.txt"
 

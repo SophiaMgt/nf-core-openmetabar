@@ -10,69 +10,88 @@ mkdir -p "$OUT_DIR"
 
 while IFS=$'\t' read -r sample bf primerF br primerR; do
 
-    len_pf=${#primerF}
-    len_pr=${#primerR}
+        len_pf=${#primerF}
+        len_pr=${#primerR}
 
-    FASTQS=( "$FASTQ_DIR"/"$sample"*.fastq "$FASTQ_DIR"/"$sample"*.fastq.gz )
-    [[ ${#FASTQS[@]} -eq 0 ]] && continue
-    FASTQ="${FASTQS[0]}"
+        FASTQS=( "$FASTQ_DIR"/"$sample"*.fastq "$FASTQ_DIR"/"$sample"*.fastq.gz )
+        [[ ${#FASTQS[@]} -eq 0 ]] && continue
+        FASTQ="${FASTQS[0]}"
 
-    echo "SAMPLE $sample"
+        echo "SAMPLE $sample"
 
-    awk -v bf="$bf" -v br="$br" \
-        -v len_pf="$len_pf" -v len_pr="$len_pr" \
-        -v sample="$sample" '
+        awk -v bf="$bf" -v br="$br" \
+                -v len_pf="$len_pf" -v len_pr="$len_pr" \
+                -v sample="$sample" '
 
-    BEGIN {
-        rc["A"]="T"; rc["T"]="A"; rc["C"]="G"; rc["G"]="C"
-        for (i=length(bf); i>0; i--) rbf = rbf rc[substr(bf,i,1)]
-        for (i=length(br); i>0; i--) rbr = rbr rc[substr(br,i,1)]
-    }
-
-    {
-        h=$0; getline s; getline p; getline q
-
-        orientation=""
-        insert_start=insert_end=0
-
-        # ---------- ORIENTATION FORWARD ----------
-        if ((startF = index(s,bf)) && (startR = index(s,rbr))) {
-            orientation="FORWARD"
-            insert_start = startF + length(bf) + len_pf
-            insert_end   = startR - len_pr
+        BEGIN {
+                rc["A"]="T"; rc["T"]="A"; rc["C"]="G"; rc["G"]="C"
+                rc["a"]="T"; rc["t"]="A"; rc["c"]="G"; rc["g"]="C"
+                for (i=length(bf); i>0; i--) rbf = rbf rc[substr(bf,i,1)]
+                for (i=length(br); i>0; i--) rbr = rbr rc[substr(br,i,1)]
         }
 
-        # ---------- ORIENTATION REVERSE ----------
-        else if ((startF = index(s,br)) && (startR = index(s,rbf))) {
-            orientation="REVERSE"
-            insert_start = startF + length(br) + len_pr
-            insert_end   = startR - len_pf
+        {
+                h=$0; getline s; getline p; getline q
+
+                orientation=""
+                insert_start=insert_end=0
+
+                # ---------- ORIENTATION FORWARD ----------
+                if ((startF = index(s,bf)) && (startR = index(s,rbr))) {
+                        orientation="FORWARD"
+                        insert_start = startF + length(bf) + len_pf
+                        insert_end = startR - len_pr
+                }
+
+                # ---------- ORIENTATION REVERSE ----------
+                else if ((startF = index(s,br)) && (startR = index(s,rbf))) {
+                        orientation="REVERSE"
+                        insert_start = startF + length(br) + len_pr
+                        insert_end       = startR - len_pf
+                }
+
+                else next
+
+                if (insert_start < 1 || insert_end <= insert_start) next
+
+                insert_seq = substr(s, insert_start, insert_end - insert_start + 1)
+                insert_qual = substr(q, insert_start, insert_end - insert_start + 1)
+
+                # ORIENTATION REVERSE CORRECTION
+                if (orientation == "REVERSE") {
+                        tmp=""
+                        for (i=length(insert_seq); i>0; i--) {
+                                base = substr(insert_seq,i,1)
+                                tmp = tmp rc[base]
+                        }
+                        insert_seq = tmp
+
+                        # reverse qualité
+                        tmpq=""
+                        for (i=length(insert_qual); i>0; i--) {
+                                tmpq = tmpq substr(insert_qual,i,1)
+                        }
+                        insert_qual = tmpq
+                        orientation = "REVERSE_rc"
+                }
+
+                # ---------- DEBUG PRINT ----------
+                print "DEBUG\t" h \
+                        "\t" orientation \
+                        "\tstartF=" startF \
+                        "\tstartR=" startR \
+                        "\tinsert_start=" insert_start \
+                        "\tinsert_end=" insert_end \
+                        "\tlen=" length(insert_seq) \
+                        > "/dev/stderr"
+
+                # ---------- OUTPUT FASTQ ----------
+                print h
+                print insert_seq
+                print "+"
+                print insert_qual
         }
-
-        else next
-
-        if (insert_start < 1 || insert_end <= insert_start) next
-
-        insert_seq  = substr(s, insert_start, insert_end - insert_start + 1)
-        insert_qual = substr(q, insert_start, insert_end - insert_start + 1)
-
-        # ---------- DEBUG PRINT ----------
-        print "DEBUG\t" sample \
-              "\t" orientation \
-              "\tstartF=" startF \
-              "\tstartR=" startR \
-              "\tinsert_start=" insert_start \
-              "\tinsert_end=" insert_end \
-              "\tlen=" length(insert_seq) \
-              > "/dev/stderr"
-
-        # ---------- OUTPUT FASTQ ----------
-        print h
-        print insert_seq
-        print "+"
-        print insert_qual
-    }
-    ' <( [[ "$FASTQ" == *.gz ]] && zcat "$FASTQ" || cat "$FASTQ" ) \
-      > "$OUT_DIR/$sample.fastq"
+        ' <( [[ "$FASTQ" == *.gz ]] && zcat "$FASTQ" || cat "$FASTQ" ) \
+        > "$OUT_DIR/$sample.fastq"
 
 done < "$MAP"

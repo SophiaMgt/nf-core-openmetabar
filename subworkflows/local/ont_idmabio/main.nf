@@ -14,6 +14,7 @@ include { LOTUS3  } from '../../../modules/local/lotus3/main'
 
 include { FILTER             } from '../filter'
 //include { REPORT             } from '../modules/local/report/main'
+include { RESULT_TABLE } from '../../../modules/local/report/result_table'
 
 workflow ONT_IDMABIO {
 
@@ -71,7 +72,7 @@ workflow ONT_IDMABIO {
     /*
     * ETAPE 4 : FILTER
     */
-    if (params.filter) {
+    if (params.length_filter) {
         FILTER(files_ch, params.expected_lengths)
         fastq_for_lotus = FILTER.out.filtered_out
         fastq_grouped_ch = fastq_for_lotus
@@ -97,6 +98,13 @@ workflow ONT_IDMABIO {
         BUILD_MAPPING_FILE.out.fastq_folder,
         db_ch,
         tax_ch
+    )
+
+    RESULT_TABLE(
+        LOTUS3.out.otu_table,
+        LOTUS3.out.otu_seq,
+        LOTUS3.out.otu_taxo,
+        LOTUS3.out.blast_result
     )
 
     /*

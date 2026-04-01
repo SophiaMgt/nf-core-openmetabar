@@ -13,8 +13,8 @@ process LENGTHS_FILTER {
     script:
     // Calcul des plages ±10% pour chaque longueur attendue
     def ranges = expected_lengths.collect { len ->
-        def min = Math.round(len * 0.9)
-        def max = Math.round(len * 1.1)
+        def min = Math.max(0, len - 100)
+        def max = len + 100
         return [min: min, max: max]
     }
 

@@ -10,7 +10,9 @@ include { PARSE_FILE } from '../../../modules/local/parse_file/main'
 include { BUILD_MAPPING_FILE } from '../../../modules/local/lotus3/mapping_file'
 
 //include { CLUSTER_TAXO       } from '../subworkflows/local/cluster_taxo'
-include { LOTUS3  } from '../../../modules/local/lotus3/main'
+include { NEXTITS  } from '../../../modules/local/nextITS/main'
+
+include { LOTUS3_TAXO  } from '../../../modules/local/lotus3/main_taxo'
 
 include { FILTER             } from '../filter'
 //include { REPORT             } from '../modules/local/report/main'
@@ -57,11 +59,26 @@ workflow PACBIO_LSU_ITS {
     /*
     * ETAPE 5 : ANALYSE TAXO
     */
+    BUILD_MAPPING_FILE(fastq_grouped_ch, design_file)
+    BUILD_MAPPING_FILE.out.mapping_file.view { "MAP → $it" }
+    BUILD_MAPPING_FILE.out.fastq_folder.view { "FASTQ → $it" }
     
-    // NEXTITS
+    Channel
+        .fromPath(params.chimera_db)
+        .set { chimera_db }
 
-    /*
-    * ETAPE 5 : REPORT
-    */
+    // NEXTITS
+    NEXTITS(
+        BUILD_MAPPING_FILE.out.fastq_folder,
+        chimera_db
+    )
+    NEXTITS.out.otu_lulu.view { "OTU → $it" }
+
+    LOTUS3_TAXO(
+        NEXTITS.out.otu_lulu,
+        db_ch,
+        tax_ch
+    )
+
 
 }

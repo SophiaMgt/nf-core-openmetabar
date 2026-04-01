@@ -3,7 +3,7 @@
 #sequence length refers to sequence length AFTER removal of Primers, Barcodes and trimming. this ensures that downstream analyis tools will have appropiate sequence information
 #experimental options for ONT (Q20!) data
 #use at your own risk
-minSeqLength	500
+minSeqLength	100
 maxSeqLength	2000
 minAvgQuality	12
 *minSeqLength	500

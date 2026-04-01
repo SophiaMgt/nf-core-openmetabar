@@ -1,21 +1,26 @@
 // modules/local/report/main.nf
-process REPORT {
+process RESULT_TABLE {
     tag "report"
 
     //container "oras://registry.forge.inrae.fr/sophia.marguerit/report_py_2_word/report_py_2_word:latest"
 
     input:
-    val demux
+    path otu_table
+    path otu_seq
+    path otu_tax
+    path blast
 
     output:
-    path "report_idmabio.docx", emit: report_idmabio
+    path "*.csv", emit: table_final
 
     script:
     """
     set -euo pipefail
-    echo "[INFO] Info  ${demux}"
+    
+    echo "PROJECT DIR: ${projectDir}"
+    ls ${projectDir}/scripts
 
-    python ${projectDir}/scripts/generate_report.py
+    python ${projectDir}/scripts/table_final.py ${otu_table} ${otu_seq} ${otu_tax} ${blast }
 
     # Versions (debug)
     cat <<-END_VERSIONS > versions.yml

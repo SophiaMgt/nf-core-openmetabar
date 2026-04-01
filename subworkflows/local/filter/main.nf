@@ -21,6 +21,7 @@ workflow FILTER {
   take:
   fastq
   expected_lengths
+  //qual
 
   main:
   //   ch_input = minibar_dir.flatMap { dir ->
@@ -31,11 +32,17 @@ workflow FILTER {
 
     //fastq_demux.view { fq -> "FASTQ FILE sub SONT : $fq" }
 
+  //if (params.length_filter) {
+    //LENGTHS_FILTER(fastq,expected_lengths)
+  //}
   LENGTHS_FILTER(fastq,expected_lengths)
+  //if (params.qual_filter) {
+   // QUAL_FILTER(fastq,qual)
+  //}
 
-  // Filtre qualité à ajouter
-
-  // Filtre séquence codante à ajouter
+  //if (params.coding_filter) {
+  //
+  //}
 
   emit: 
   filtered_out = LENGTHS_FILTER.out.filtered_fastq
