@@ -42,7 +42,9 @@ workflow ONT_IDMABIO {
             tuple(parts.collect { file(it.trim()) })
     }
     fastq_list_ch.view { "fastq_list_ch → $it" } 
-
+    
+    summary_input = PARSE_FILE.out.summary_metrics // input info log
+    
     /*
     * ETAPE 2 : DEMULTIPLEX
     */
