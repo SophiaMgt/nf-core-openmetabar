@@ -35,6 +35,10 @@ process LOTUS3 {
     }
 
     """
+    mkdir DB
+    cp ${projectDir}/modules/local/lotus3/DB/phiX.fasta DB/.
+    cp ${projectDir}/modules/local/lotus3/DB/rdp_gold.fa DB/.
+
     lotus3 \\
         -m ${mapping_file} \\
         -i ${fastq_folder} \\
