@@ -36,7 +36,7 @@ process BUILD_MAPPING_FILE {
 
     echo "[INFO] Building mapping_file for Lotus3..."
     # mapping file split (only non-empty FASTQ are present)
-    bash ${projectDir}/scripts/build_mapping.sh ${design} $params.filter $params.demux
+    bash ${projectDir}/scripts/build_mapping.sh ${design} $params.length_filter $params.demux
 
     echo "[INFO] Creating FASTQ summary..."
     echo -e "File\tNumSequences\tStatus" > fastq_summary.txt

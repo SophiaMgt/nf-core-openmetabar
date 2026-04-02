@@ -9,7 +9,8 @@ process LENGTHS_FILTER {
 
     output:
     tuple path("*_filtered.fastq"), emit: filtered_fastq
-
+    path "length_filter_metrics.tsv", emit: metrics
+    
     script:
     // Calcul des plages ±10% pour chaque longueur attendue
     def ranges = expected_lengths.collect { len ->
@@ -23,28 +24,40 @@ process LENGTHS_FILTER {
         "-m ${r.min} -M ${r.max}"
     }.join(" ")
 
-    // """
-    // echo "[INFO] Filtering ${fastq_file} ..."
-    // echo "[INFO] Accepted length ranges: ${ranges.collect{ it.min + '-' + it.max }.join(', ')}"
-
-    // # Filtrage des séquences avec seqkit
-    // seqkit seq ${seqkit_filters} -w 0 ${fastq_file} -o ${fastq_file.simpleName}_filtered.fastq
-
-    // """
-
     if (fastq_file.size() == 2) {
-            """
-            echo "[INFO] Paired-end filtering ${fastq_file}"
+        """
+        echo "[INFO] Paired-end filtering ${fastq_file}"
+        echo -e "sample\\treads_before_filter\\treads_after_filter" > length_filter_metrics.tsv
 
-            seqkit seq ${seqkit_filters} -w 0 ${fastq_file[0]} -o ${fastq_file[0].simpleName}_filtered.fastq
-            seqkit seq ${seqkit_filters} -w 0 ${fastq_file[1]} -o ${fastq_file[1].simpleName}_filtered.fastq
-            """
-        }
-        else {
-            """
-            echo "[INFO] Single-end filtering ${fastq_file}"
+        for fq in ${fastq_file[0]} ${fastq_file[1]}; do
+            sample_name=\$(basename "\$fq" .fastq)
 
-            seqkit seq ${seqkit_filters} -w 0 ${fastq_file[0]} -o ${fastq_file[0].simpleName}_filtered.fastq
-            """
-        }
+            n_before=\$(awk 'END{print NR/4}' "\$fq")
+
+            seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}_filtered.fastq
+
+            n_after=\$(awk 'END{print NR/4}' "\${sample_name}_filtered.fastq")
+
+            echo -e "\${sample_name}\\t\${n_before}\\t\${n_after}" >> length_filter_metrics.tsv
+        done
+        """
+    }
+
+    else {
+        """
+        echo "[INFO] Single-end filtering ${fastq_file}"
+        echo -e "sample\\treads_before_filter\\treads_after_filter" > length_filter_metrics.tsv
+
+        fq=${fastq_file[0]}
+        sample_name=\$(basename "\$fq" .fastq)
+
+        n_before=\$(awk 'END{print NR/4}' "\$fq")
+
+        seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}_filtered.fastq
+
+        n_after=\$(awk 'END{print NR/4}' "\${sample_name}_filtered.fastq")
+
+        echo -e "\${sample_name}\\t\${n_before}\\t\${n_after}" >> length_filter_metrics.tsv
+        """
+    }
 }

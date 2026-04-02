@@ -88,6 +88,6 @@ while IFS=$'\t' read -r -a cols; do
     sed -i '$ s/\t$//' "$out"
     echo >> "$out"
 
-done < "$design_file"
+done < <(tail -n +2 "$design_file")
 
 echo "[INFO] Mapping file created: $out"
