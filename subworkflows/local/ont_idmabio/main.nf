@@ -75,17 +75,23 @@ workflow ONT_IDMABIO {
     /*
     * ETAPE 4 : FILTER
     */
-    if (params.length_filter) {
-        FILTER(files_ch, params.expected_lengths)
-        fastq_for_lotus = FILTER.out.filtered_out
-        fastq_grouped_ch = fastq_for_lotus
-            .collect() // pour donner tout en même temps
-            .map { list -> list.flatten() }
-    } else {
-        fastq_grouped_ch = files_ch
-            .collect()
-            .map { list -> list.flatten() }
-    }
+
+    FILTER(files_ch, params.expected_lengths, params.min_q)
+    fastq_grouped_ch = FILTER.out.filtered_out.collect()
+                        .map { list -> list.flatten() }
+
+    // if (params.length_filter) {
+    //     FILTER(files_ch, params.expected_lengths)
+    //     fastq_for_lotus = FILTER.out.filtered_out
+    //     fastq_grouped_ch = fastq_for_lotus
+    //         .collect() // pour donner tout en même temps
+    //         .map { list -> list.flatten() }
+    // } else {
+    //     fastq_grouped_ch = files_ch
+    //         .collect()
+    //         .map { list -> list.flatten() }
+    // }
+    // fastq_grouped_ch.view { "fastq_grouped_ch → $it" }
     fastq_grouped_ch.view { "fastq_grouped_ch → $it" }
 
     /*

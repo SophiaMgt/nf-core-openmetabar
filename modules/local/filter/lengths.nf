@@ -8,7 +8,7 @@ process LENGTHS_FILTER {
     val expected_lengths  // liste des longueurs attendues
 
     output:
-    tuple path("*_filtered.fastq"), emit: filtered_fastq
+    tuple path("*.length.fastq"), emit: filtered_fastq
     path "length_filter_metrics.tsv", emit: metrics
     
     script:
@@ -34,9 +34,9 @@ process LENGTHS_FILTER {
 
             n_before=\$(awk 'END{print NR/4}' "\$fq")
 
-            seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}_filtered.fastq
+            seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}.length.fastq
 
-            n_after=\$(awk 'END{print NR/4}' "\${sample_name}_filtered.fastq")
+            n_after=\$(awk 'END{print NR/4}' "\${sample_name}.length.fastq")
 
             echo -e "\${sample_name}\\t\${n_before}\\t\${n_after}" >> length_filter_metrics.tsv
         done
@@ -51,11 +51,14 @@ process LENGTHS_FILTER {
         fq=${fastq_file[0]}
         sample_name=\$(basename "\$fq" .fastq)
 
+        echo "[INFO] Single-end filtering \${fq}"
+        echo "[INFO] Single-end filtering \${sample_name}"
+
         n_before=\$(awk 'END{print NR/4}' "\$fq")
 
-        seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}_filtered.fastq
+        seqkit seq ${seqkit_filters} -w 0 "\$fq" -o \${sample_name}.length.fastq
 
-        n_after=\$(awk 'END{print NR/4}' "\${sample_name}_filtered.fastq")
+        n_after=\$(awk 'END{print NR/4}' "\${sample_name}.length.fastq")
 
         echo -e "\${sample_name}\\t\${n_before}\\t\${n_after}" >> length_filter_metrics.tsv
         """

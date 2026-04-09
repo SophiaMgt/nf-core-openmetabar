@@ -39,7 +39,7 @@ while IFS=$'\t' read -r -a cols; do
     if [[ "$demux" == "true" ]]; then
         # Chaque SampleID a déjà son propre FASTQ
         if [[ "$filter" == "true" ]]; then
-            fq_candidate="${Sample_ID}_filtered.fastq"
+            fq_candidate="${Sample_ID}.filtered.fastq" 
         else
             fq_candidate="${Sample_ID}.fastq"
         fi
@@ -59,7 +59,7 @@ while IFS=$'\t' read -r -a cols; do
             base="$(basename "$part")"
 
             if [[ "$filter" == "true" ]]; then
-                base="${base%.fastq*}_filtered.fastq"
+                base="${base%.fastq*}.filtered.fastq"
             fi
 
             if [[ -f "$fastq_dir/$base" ]]; then

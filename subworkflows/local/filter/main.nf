@@ -9,6 +9,8 @@
 */
 
 include { LENGTHS_FILTER } from '../../../modules/local/filter/lengths'
+include { QUALITY_FILTER } from '../../../modules/local/filter/qual'
+include { FINALIZE_FILTER_NAME } from '../../../modules/local/filter/rename'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -21,30 +23,31 @@ workflow FILTER {
   take:
   fastq
   expected_lengths
-  //qual
+  min_q
 
   main:
-  //   ch_input = minibar_dir.flatMap { dir ->
-  //       Channel.fromPath("${dir}/*.fastq").map { fq ->
-  //           tuple(fq, expected_lengths)
-  //       }
-  //   }.view { "DEBUG Filter: $it" }  // affiche ce qui sera envoyé au process
+  if (params.quality_filter) {
+    QUALITY_FILTER(fastq, min_q)
+    fastq_after_quality = QUALITY_FILTER.out.filtered_fastq
+  } else {
+    fastq_after_quality = fastq
+  }
 
-    //fastq_demux.view { fq -> "FASTQ FILE sub SONT : $fq" }
-
-  //if (params.length_filter) {
-    //LENGTHS_FILTER(fastq,expected_lengths)
-  //}
-  LENGTHS_FILTER(fastq,expected_lengths)
-  //if (params.qual_filter) {
-   // QUAL_FILTER(fastq,qual)
-  //}
+  if (params.length_filter) {
+    LENGTHS_FILTER(fastq_after_quality, expected_lengths)
+    fastq_after_length = LENGTHS_FILTER.out.filtered_fastq
+  } else {
+    fastq_after_length = fastq_after_quality
+  }
 
   //if (params.coding_filter) {
   //
   //}
 
-  emit: 
-  filtered_out = LENGTHS_FILTER.out.filtered_fastq
+  // clean de nom de fichier ?
+  FINALIZE_FILTER_NAME(fastq_after_length)
 
+  emit: 
+  //filtered_out = LENGTHS_FILTER.out.filtered_fastq
+  filtered_out = FINALIZE_FILTER_NAME.out.filtered_fastq
 }
