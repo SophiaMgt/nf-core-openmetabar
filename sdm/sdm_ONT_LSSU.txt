@@ -5,7 +5,7 @@
 #use at your own risk
 minSeqLength	100
 maxSeqLength	2000
-minAvgQuality	12
+minAvgQuality	20
 *minSeqLength	500
 *minAvgQuality	20
 #truncate total Sequence length to X (length after Barcode, Adapter and Primer removals, set to -1 to deactivate)

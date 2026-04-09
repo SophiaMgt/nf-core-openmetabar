@@ -11,8 +11,8 @@ process MINIBAR {
     output:
     path "output_minibar", emit: minibar_results
     path "fastq_trim", emit : fastq_trim
-    path "demux_metrics.tsv"
-    path "demux_trim_metrics.tsv"
+    path "demux_metrics.tsv", emit : demux_metrics
+    path "demux_trim_metrics.tsv", emit : demux_trim_metrics
     //path "versions.yml", emit: versions
 
     script:

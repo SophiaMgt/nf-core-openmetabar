@@ -15,7 +15,7 @@ process PARSE_FILE {
     """
     set -euo pipefail
     echo "[INFO] Parsing design file: ${design_file}"
-
+  
     # Vérification des colonnes obligatoires
     header=\$(head -1 ${design_file})
     required_cols=("Sample_ID" "fastq_path" "barcodeF" "barcodeR" "primerF" "primerR")

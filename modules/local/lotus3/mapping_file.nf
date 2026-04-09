@@ -38,7 +38,7 @@ process BUILD_MAPPING_FILE {
     # mapping file split (only non-empty FASTQ are present)
     bash ${projectDir}/scripts/build_mapping.sh ${design} $params.length_filter $params.demux
 
-    echo "[INFO] Creating FASTQ summary..."
+    echo "[INFO] Creating FASTQ summary..." 
     echo -e "File\tNumSequences\tStatus" > fastq_summary.txt
 
     for f in ${fastq.join(' ')}; do

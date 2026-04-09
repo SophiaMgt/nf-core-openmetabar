@@ -51,6 +51,8 @@ workflow ONT_IDMABIO {
     if (params.demux) {
         MINIBAR(fastq_list_ch, barcode_file_ch)
         fastq_to_filter = MINIBAR.out.fastq_trim
+        metrics_minibar = MINIBAR.out.demux_metrics
+        metrics_minibar_trim = MINIBAR.out.demux_trim_metrics
     } else {
         fastq_to_filter = fastq_list_ch
     }
@@ -69,7 +71,6 @@ workflow ONT_IDMABIO {
         }
     }
     //files_ch.view { "files_ch → $it" } 
-
 
     /*
     * ETAPE 4 : FILTER
