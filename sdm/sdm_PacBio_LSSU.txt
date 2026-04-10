@@ -2,7 +2,7 @@
 #* indicates alternative quality filtering options, saved in *.add.fna etc. files separately from initial quality filtered dataset
 #sequence length refers to sequence length AFTER removal of Primers, Barcodes and trimming. this ensures that downstream analyis tools will have appropiate sequence information
 minSeqLength	900
-maxSeqLength	2300
+maxSeqLength	4000
 minAvgQuality	27
 *minSeqLength	500
 *minAvgQuality	20
@@ -52,11 +52,11 @@ TrimStartNTs	0
 PEheaderPairFmt	1
 
 #sets if sequences without match to reverse primer will be accepted (T=reject ; F=accept all); default=F
-RejectSeqWithoutRevPrim	T
+RejectSeqWithoutRevPrim	F
 *RejectSeqWithoutRevPrim	F
 
 #sets if sequences without a forward (LinkerPrimerSequence) primer will be accepted (T=reject ; F=accept all); default=T
-RejectSeqWithoutFwdPrim	T
+RejectSeqWithoutFwdPrim	F
 *RejectSeqWithoutFwdPrim	F
 
 
