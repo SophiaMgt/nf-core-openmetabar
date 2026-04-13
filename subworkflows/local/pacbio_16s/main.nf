@@ -38,10 +38,12 @@ workflow PACBIO_16S {
     }
     fastq_list_ch.view { "fastq_list_ch → $it" } 
     
+    summary_input = PARSE_FILE.out.summary_metrics // input info log
+
     /*
     * ETAPE 4 : FILTER
     */
-    FILTER(files_ch, params.expected_lengths, params.min_q)
+    FILTER(fastq_list_ch, params.expected_lengths, params.min_q)
     fastq_grouped_ch = FILTER.out.filtered_out.collect()
                         .map { list -> list.flatten() }
 

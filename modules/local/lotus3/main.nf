@@ -82,7 +82,7 @@ process LOTUS3 {
     header=\$(head -1 ${outdir}/OTU.txt)
 
     # pour chaque colonne (sample)
-    awk -v otu_file="${outdir}/OTU.txt" -v tax_file="${outdir}/hiera_BLAST.txt" '
+    awk -v otu_file="${outdir}/OTU.txt" -v tax_file="${outdir}/hiera_BLAST.txt"
     BEGIN {
         FS="\t"
     }
