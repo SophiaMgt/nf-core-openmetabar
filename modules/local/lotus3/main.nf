@@ -81,13 +81,34 @@ process LOTUS3 {
     # récupérer header samples
     header=\$(head -1 ${outdir}/OTU.txt)
 
-    # pour chaque colonne (sample)
-    awk -v otu_file="${outdir}/OTU.txt" -v tax_file="${outdir}/hiera_BLAST.txt"
+    # pour chaque colonne (sample), récupérer le ZOTU majoritaire et sa taxonomie
+    awk '
     BEGIN {
-        FS="\t"
+        FS=OFS="\t"
     }
 
-    NR==1 {
+    FNR==NR {
+        if (NF < 2) next
+
+        otu_id=\$1
+        gsub(/^ +| +$/, "", otu_id)
+
+        # Ignore un éventuel header du fichier taxo
+        if (otu_id == "OTU" || otu_id == "#OTU" || otu_id == "ZOTU" || otu_id == "#ZOTU") next
+
+        taxonomy=\$2
+        for (i=3; i<=NF; i++) {
+            taxonomy = taxonomy OFS \$i
+        }
+        gsub(/^ +| +$/, "", taxonomy)
+
+        if (taxonomy == "") taxonomy = "NA"
+        tax_by_otu[otu_id] = taxonomy
+        next
+    }
+
+    FNR==1 {
+        n_samples = NF
         for(i=2;i<=NF;i++) samples[i]=\$i
         next
     }
@@ -95,7 +116,7 @@ process LOTUS3 {
     {
         otu=\$1
         for(i=2;i<=NF;i++) {
-            if(\$i > max[i]) {
+            if ((i in max) == 0 || \$i > max[i]) {
                 max[i]=\$i
                 best_otu[i]=otu
             }
@@ -103,11 +124,14 @@ process LOTUS3 {
     }
 
     END {
-        for(i in samples) {
-            print samples[i] "\t" best_otu[i] "\tNA\t" max[i]
+        for(i=2; i<=n_samples; i++) {
+            otu = best_otu[i]
+            taxonomy = (otu in tax_by_otu) ? tax_by_otu[otu] : "NA"
+            abundance = (i in max) ? max[i] : 0
+            print samples[i], otu, taxonomy, abundance
         }
     }
-    ' ${outdir}/OTU.txt >> lotus3_sample_summary.tsv    
+    ' ${outdir}/hiera_BLAST.txt ${outdir}/OTU.txt >> lotus3_sample_summary.tsv    
 
  
     cat <<-END_VERSIONS > versions.yml

@@ -13,6 +13,32 @@ out="mymap.txt"
 
 IFS=$'\t'
 
+resolve_fastq_name() {
+    local requested="$1"
+    local candidates=()
+
+    candidates+=("$requested")
+
+    if [[ "$requested" == *.fastq.gz ]]; then
+        candidates+=("${requested%.fastq.gz}.fastq")
+        candidates+=("${requested%.fastq.gz}.filtered.fastq")
+    elif [[ "$requested" == *.fastq ]]; then
+        candidates+=("${requested%.fastq}.filtered.fastq")
+    else
+        candidates+=("${requested}.fastq")
+        candidates+=("${requested}.filtered.fastq")
+    fi
+
+    for candidate in "${candidates[@]}"; do
+        if [[ -f "$fastq_dir/$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 {   # --- HEADER ---
     read -r header_line
     read -ra header_cols <<< "$header_line"
@@ -44,8 +70,8 @@ while IFS=$'\t' read -r -a cols; do
             fq_candidate="${Sample_ID}.fastq"
         fi
 
-        if [[ -f "$fastq_dir/$fq_candidate" ]]; then
-            fq_list+=("$fq_candidate")
+        if resolved_fastq="$(resolve_fastq_name "$fq_candidate")"; then
+            fq_list+=("$resolved_fastq")
         else
             echo "[WARN] FASTQ not found for SampleID $Sample_ID → skipping: $fq_candidate" >&2
             continue
@@ -62,8 +88,8 @@ while IFS=$'\t' read -r -a cols; do
                 base="${base%.fastq*}.filtered.fastq"
             fi
 
-            if [[ -f "$fastq_dir/$base" ]]; then
-                fq_list+=("$base")
+            if resolved_fastq="$(resolve_fastq_name "$base")"; then
+                fq_list+=("$resolved_fastq")
             else
                 echo "[WARN] FASTQ not found in $fastq_dir → skipping: $base" >&2
             fi

@@ -52,6 +52,7 @@ workflow OPENMETABAR {
             newLine: true
         ).set { ch_collated_versions }
 
+    // DB
     Channel
         .fromPath(params.refDB)
         .set { db_ch }
