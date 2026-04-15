@@ -12,6 +12,7 @@ include { BUILD_MAPPING_FILE } from '../../../modules/local/lotus3/mapping_file'
 //include { CLUSTER_TAXO       } from '../subworkflows/local/cluster_taxo'
 include { NEXTITS  } from '../../../modules/local/nextITS/main'
 
+include { LOTUS3  } from '../../../modules/local/lotus3/main'
 include { LOTUS3_TAXO  } from '../../../modules/local/lotus3/main_taxo'
 
 include { FILTER             } from '../filter'
@@ -68,17 +69,26 @@ workflow PACBIO_LSU_ITS {
         .set { chimera_db }
 
     // NEXTITS
-    NEXTITS(
-        BUILD_MAPPING_FILE.out.fastq_folder,
-        chimera_db
-    )
-    NEXTITS.out.otu_lulu.view { "OTU → $it" }
+    if (params.nextITS) {
+        NEXTITS(
+            BUILD_MAPPING_FILE.out.fastq_folder,
+            chimera_db
+        )
+        NEXTITS.out.otu_lulu.view { "OTU → $it" }
 
-    LOTUS3_TAXO(
-        NEXTITS.out.otu_lulu,
-        db_ch,
-        tax_ch
-    )
+        LOTUS3_TAXO(
+            NEXTITS.out.otu_lulu,
+            db_ch,
+            tax_ch
+        )
+    } else {
+        LOTUS3(
+            BUILD_MAPPING_FILE.out.mapping_file,
+            BUILD_MAPPING_FILE.out.fastq_folder,
+            db_ch,
+            tax_ch
+        )
+    }
 
 
 }
