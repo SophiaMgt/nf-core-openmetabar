@@ -91,7 +91,7 @@ process LOTUS3 {
         if (NF < 2) next
 
         otu_id=\$1
-        gsub(/^ +| +$/, "", otu_id)
+        gsub(/^ +| +\$/, "", otu_id)
 
         # Ignore un éventuel header du fichier taxo
         if (otu_id == "OTU" || otu_id == "#OTU" || otu_id == "ZOTU" || otu_id == "#ZOTU") next
@@ -100,7 +100,7 @@ process LOTUS3 {
         for (i=3; i<=NF; i++) {
             taxonomy = taxonomy OFS \$i
         }
-        gsub(/^ +| +$/, "", taxonomy)
+        gsub(/^ +| +\$/, "", otu_id)
 
         if (taxonomy == "") taxonomy = "NA"
         tax_by_otu[otu_id] = taxonomy

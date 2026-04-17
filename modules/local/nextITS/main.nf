@@ -16,8 +16,11 @@ process NEXTITS {
     script:
 
     // Récupération des args depuis le config (via withName)
-    //def args = task.ext.args ?: ''
-    //def args_list = args.tokenize()
+    def args = task.ext.args ?: ''
+    def args_list = args.tokenize()
+
+    def args2 = task.ext.args2 ?: ''
+    def args_list2 = args2.tokenize()
     """
     echo "!! Check Input NextITS process !!"
 
@@ -28,13 +31,12 @@ process NEXTITS {
         -with-singularity /home/smarguerit/work/METAB/pipeline/singularity/vmiks-nextits-nextits-1-2-0.img \
         --step Step1 \
         --demultiplexed true \
-        --input fastq_folder/ \
-        --primer_forward "ACCWGCGGARGGATCATTA" \
+        --input ${fastq_folder} \
+        --primer_forward "ACCWGCGGARGGATCATTA" \ voir commment je peux les recup via le designFile
         --primer_reverse "TCCTGAGGGAAACTTCG" \
-        --its_region "LSU" \
-        --ITSx_tax "all" \
         --chimera_db /home/smarguerit/work/METAB/pipeline/mateo_data/UN95_chimera.udb \
-        --outdir "Step1_result" 
+        --outdir "Step1_result" \
+        ${args_list.join(' ')}
 
     # NextITS Step 2
     nextflow run vmikk/NextITS \
@@ -43,10 +45,8 @@ process NEXTITS {
         -with-singularity /home/smarguerit/work/METAB/pipeline/singularity/vmiks-nextits-nextits-1-2-0.img \
         --step "Step2" \
         --data_path "." \
-        --clustering_method "unoise" \
-        --unoise true \
         --outdir "Step2_Results" \
-        --hp true
+        ${args_list.join(' ')}
  
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
