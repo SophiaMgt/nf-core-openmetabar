@@ -2,9 +2,8 @@ process NEXTITS {
     tag 'NextITS'
     clusterOptions = { "--job-name ${task.tag}" }
     
-    containerOptions = "--bind ${projectDir}:${projectDir}"
-    
     input:
+    path designFile
     path fastq_folder
     path db_chimera
 
@@ -24,6 +23,12 @@ process NEXTITS {
     """
     echo "!! Check Input NextITS process !!"
 
+    primer_forward=\$(awk -F '\\t' 'NR==2 {print \$5}' ${designFile})
+    primer_reverse=\$(awk -F '\\t' 'NR==2 {print \$6}' ${designFile})
+
+    echo "Primer forward: \$primer_forward"
+    echo "Primer reverse: \$primer_reverse"
+
     # NextITS Step 1
     nextflow run vmikk/NextITS \
         -r main \
@@ -32,8 +37,8 @@ process NEXTITS {
         --step Step1 \
         --demultiplexed true \
         --input ${fastq_folder} \
-        --primer_forward "ACCWGCGGARGGATCATTA" \ voir commment je peux les recup via le designFile
-        --primer_reverse "TCCTGAGGGAAACTTCG" \
+        --primer_forward "\$primer_forward" \
+        --primer_reverse "\$primer_reverse" \
         --chimera_db /home/smarguerit/work/METAB/pipeline/mateo_data/UN95_chimera.udb \
         --outdir "Step1_result" \
         ${args_list.join(' ')}

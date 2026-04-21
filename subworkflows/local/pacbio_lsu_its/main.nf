@@ -71,6 +71,7 @@ workflow PACBIO_LSU_ITS {
     // NEXTITS
     if (params.nextITS) {
         NEXTITS(
+            design_file,
             BUILD_MAPPING_FILE.out.fastq_folder,
             chimera_db
         )
