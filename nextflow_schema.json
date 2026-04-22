@@ -1,4 +1,4 @@
-_{
+{
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/nf-core/openmetabar/master/nextflow_schema.json",
     "title": "nf-core/openmetabar pipeline parameters",
