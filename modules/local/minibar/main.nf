@@ -1,9 +1,7 @@
 // modules/local/minibar/main.nf
 process MINIBAR {
     tag "minibar"
-
-    container "oras://registry.forge.inrae.fr/sophia.marguerit/minibar/minibar:latest"
-
+    
     input:
     path fastq           // fichier fastq réel (staged par Nextflow)
     path barcode         // fichier barcode
