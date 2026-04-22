@@ -28,7 +28,7 @@ process NEXTITS {
 
     echo "Primer forward: \$primer_forward"
     echo "Primer reverse: \$primer_reverse"
-
+    
     # NextITS Step 1
     nextflow run vmikk/NextITS \
         -r main \
@@ -36,7 +36,7 @@ process NEXTITS {
         -with-singularity /home/smarguerit/work/METAB/pipeline/singularity/vmiks-nextits-nextits-1-2-0.img \
         --step Step1 \
         --demultiplexed true \
-        --input ${fastq_folder} \
+        --input ${fastq_folder}/ \
         --primer_forward "\$primer_forward" \
         --primer_reverse "\$primer_reverse" \
         --chimera_db /home/smarguerit/work/METAB/pipeline/mateo_data/UN95_chimera.udb \
@@ -51,7 +51,7 @@ process NEXTITS {
         --step "Step2" \
         --data_path "." \
         --outdir "Step2_Results" \
-        ${args_list.join(' ')}
+        ${args_list2.join(' ')}
  
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
