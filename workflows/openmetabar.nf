@@ -18,6 +18,7 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_open
 // include { FILTER                 } from '../subworkflows/local/filter'
 // include { REPORT            } from '../modules/local/report/main'
 
+include { GENERATE_TAX4REFDB      } from '../modules/local/lotus3/generate_tax4refdb'
 
 include { ONT_IDMABIO             } from '../subworkflows/local/ont_idmabio'
 // include { ONT_COI                 } from '../subworkflows/local/ont_coi'
@@ -60,6 +61,21 @@ workflow OPENMETABAR {
         .fromPath(params.tax4refDB)
         .set { tax_ch }
 
+Channel
+    .fromPath(params.refDB)
+    .map { fasta ->
+        def base = fasta.name
+            .replaceFirst(/\.gz$/, '')
+            .replaceFirst(/\.(fasta|fa|fna)$/, '')
+        tuple(base + '_index', fasta)
+    }
+    .set { db_ch }    
+    db_ch.view()
+    
+    GENERATE_TAX4REFDB(db_ch)
+    tax = GENERATE_TAX4REFDB.out.tax
+    tax.view()
+    
     //
     // RE STRUCTURE
     //
