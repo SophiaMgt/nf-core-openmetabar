@@ -40,6 +40,7 @@ def strip_fasta_suffix(path):
             return name[: -len(suffix)]
     return Path(name).stem
 
+
 def normalize_rank(value):
     if value is None:
         return FILL_VALUE
@@ -151,8 +152,6 @@ def parse_unite_header(header):
 
 
 def parse_custom_header(header):
-    # format attendu:
-    # >hap|rank1,rank2,rank3,rank4,rank5,rank6,rank7
     parts = header.split("|", 1)
     seq_id = parts[0].strip()
 
@@ -162,8 +161,7 @@ def parse_custom_header(header):
             "Format attendu: >hap|rank1,rank2,rank3,rank4,rank5,rank6,rank7"
         )
 
-    #raw_tax = [x.strip() for x in parts[1].split(",")]
-    raw_tax = [x.strip() for x in re.split(r"[,;]",parts[1]) if x.strip()]
+    raw_tax = [x.strip() for x in re.split(r"[,;]", parts[1]) if x.strip()]
 
     if len(raw_tax) != 7:
         raise ValueError(
@@ -188,51 +186,67 @@ def taxonomy_from_header(header, db_type):
     raise ValueError(f"Type de base non supporté: {db_type}")
 
 
-def generate_tax_file(fasta_path, tax_output_path, db_type):
+def generate_tax_and_clean_fasta(fasta_path, tax_output_path, clean_fasta_output_path, db_type):
     n_records = 0
     n_missing = 0
 
     log_info(f"Lecture du FASTA : {fasta_path}")
     log_info(f"Type de base : {db_type}")
     log_info(f"Écriture du fichier tax : {tax_output_path}")
+    log_info(f"Écriture du FASTA nettoyé : {clean_fasta_output_path}")
 
-    with open_text(fasta_path) as fasta, open(tax_output_path, "w", encoding="utf-8") as tax_out:
+    with open_text(fasta_path) as fasta, \
+         open(tax_output_path, "w", encoding="utf-8") as tax_out, \
+         open(clean_fasta_output_path, "w", encoding="utf-8") as clean_fasta_out:
+
+        current_seq_id = None
+        saw_header = False
+
         for line_number, line in enumerate(fasta, start=1):
-            if not line.startswith(">"):
-                continue
+            if line.startswith(">"):
+                saw_header = True
+                header = line[1:].strip()
 
-            header = line[1:].strip()
-            if not header:
-                log_warn(f"Header FASTA vide à la ligne {line_number}, ignoré.")
-                continue
+                if not header:
+                    log_warn(f"Header FASTA vide à la ligne {line_number}, ignoré.")
+                    current_seq_id = None
+                    continue
 
-            seq_id, ranks = taxonomy_from_header(header, db_type)
+                seq_id, ranks = taxonomy_from_header(header, db_type)
 
-            if not seq_id:
-                log_warn(f"Identifiant de séquence vide à la ligne {line_number}, ignoré.")
-                continue
+                if not seq_id:
+                    log_warn(f"Identifiant de séquence vide à la ligne {line_number}, ignoré.")
+                    current_seq_id = None
+                    continue
 
-            if any(rank == FILL_VALUE for rank in ranks):
-                n_missing += 1
+                if any(rank == FILL_VALUE for rank in ranks):
+                    n_missing += 1
 
-            taxonomy = format_prefixed_taxonomy(ranks)
-            tax_out.write(f"{seq_id}\t{taxonomy}\n")
-            n_records += 1
+                taxonomy = format_prefixed_taxonomy(ranks)
+                tax_out.write(f"{seq_id}\t{taxonomy}\n")
 
-    if n_records == 0:
-        raise ValueError(f"Aucun header FASTA trouvé dans '{fasta_path}'")
+                clean_fasta_out.write(f">{seq_id}\n")
+                current_seq_id = seq_id
+                n_records += 1
+            else:
+                if current_seq_id is not None:
+                    clean_fasta_out.write(line)
+
+        if not saw_header:
+            raise ValueError(f"Aucun header FASTA trouvé dans '{fasta_path}'")
 
     log_info(
         f"Fichier tax généré : {tax_output_path} "
         f"({n_records} entrées, {n_missing} avec au moins un rang manquant)"
     )
+    log_info(f"FASTA nettoyé généré : {clean_fasta_output_path}")
 
 
 def main():
-    if len(sys.argv) not in (3, 4):
+    if len(sys.argv) != 3:
         log_error("Nombre d'arguments incorrect.")
         print(
-            "Usage: generate_tax4refdb.py <reference.fasta> <silva|bold|pr2|unite|custom> [index_name]",
+            "Usage: generate_tax4refdb.py <reference.fasta> <silva|bold|pr2|unite|custom>",
             file=sys.stderr,
         )
         return 2
@@ -256,19 +270,16 @@ def main():
             log_error(f"Le chemin fourni n'est pas un fichier : {fasta_path}")
             return 1
 
-        if len(sys.argv) == 4:
-            index_name = sys.argv[3]
-        else:
-            base_name = strip_fasta_suffix(fasta_path)
-            index_name = f"{base_name}_index"
+        base_name = strip_fasta_suffix(fasta_path)
+        tax_output_path = f"{base_name}.tax"
+        clean_fasta_output_path = f"{base_name}.cleaned.fasta"
 
-        tax_output_path = Path(f"{index_name}.tax")
-
-        log_info(f"Nom logique d'index : {index_name}")
+        log_info(f"Nom de base détecté : {base_name}")
         log_info(f"Fichier tax de sortie : {tax_output_path}")
+        log_info(f"FASTA nettoyé de sortie : {clean_fasta_output_path}")
         log_info("Schéma taxonomique de sortie : k__;p__;c__;o__;f__;g__;s__")
 
-        generate_tax_file(fasta_path, tax_output_path, db_type)
+        generate_tax_and_clean_fasta(fasta_path, tax_output_path, clean_fasta_output_path, db_type)
         log_info("Traitement terminé avec succès.")
         return 0
 

@@ -56,25 +56,14 @@ workflow OPENMETABAR {
     // DB
     Channel
         .fromPath(params.refDB)
-        .set { db_ch }
-    Channel
-        .fromPath(params.tax4refDB)
-        .set { tax_ch }
-
-Channel
-    .fromPath(params.refDB)
-    .map { fasta ->
-        def base = fasta.name
-            .replaceFirst(/\.gz$/, '')
-            .replaceFirst(/\.(fasta|fa|fna)$/, '')
-        tuple(base + '_index', fasta)
-    }
-    .set { db_ch }    
-    db_ch.view()
+        .set { fasta_ch }
+    // Channel
+    //     .fromPath(params.tax4refDB)
+    //     .set { tax_ch }
     
-    GENERATE_TAX4REFDB(db_ch)
-    tax = GENERATE_TAX4REFDB.out.tax
-    tax.view()
+    GENERATE_TAX4REFDB(fasta_ch)
+    tax_ch = GENERATE_TAX4REFDB.out.tax
+    db_ch = GENERATE_TAX4REFDB.out.cleaned_fasta
     
     //
     // RE STRUCTURE

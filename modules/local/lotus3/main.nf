@@ -5,7 +5,7 @@ process LOTUS3 {
     input:
     path mapping_file
     path fastq_folder
-    path db
+    path fasta
     path tax
 
     def outdir = "result_lotus3"
@@ -49,7 +49,7 @@ process LOTUS3 {
         -i ${fastq_folder} \\
         -s ${sdm_file} \\
         -o ${outdir} \\
-        -refDB ${db} -tax4refDB ${tax} \\
+        -refDB ${fasta} -tax4refDB ${tax} \\
         ${args_list.join(' ')}
 
 

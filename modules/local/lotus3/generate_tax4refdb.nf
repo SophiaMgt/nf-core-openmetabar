@@ -1,16 +1,17 @@
 process GENERATE_TAX4REFDB {
-    tag "$index_name"
+    tag "$fasta"
 
     input:
-    tuple val(index_name), path(fasta)
+    path fasta 
 
     output:
     path "*.tax", emit: tax
+    path "*.cleaned.fasta", emit: cleaned_fasta
     path "versions.yml", emit: versions
 
     script:
     """
-    python ${projectDir}/scripts/generate_tax4refdb.py "${fasta}" "${params.db_type}" "${index_name}"
+    python ${projectDir}/scripts/generate_tax4refdb.py "${fasta}" "${params.db_type}"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -20,7 +21,7 @@ process GENERATE_TAX4REFDB {
 
     stub:
     """
-    printf "stub_reference\\tUnknown;Unknown;Unknown;Unknown;Unknown;Unknown;Unknown\\n" > ${index_name}.tax
+    printf "stub_reference\\tUnknown;Unknown;Unknown;Unknown;Unknown;Unknown;Unknown\\n" > ${fasta}.tax
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
