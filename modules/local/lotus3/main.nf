@@ -1,52 +1,137 @@
 process LOTUS3 {
     //tag "$model_pheno"
     tag 'lotus3'
-    clusterOptions = { "--job-name ${task.tag}" }
-
-    //container "https://depot.galaxyproject.org/singularity/lotus3:3.03--hdfd78af_1"
-    containerOptions = "--bind ${projectDir}:${projectDir}"
 
     input:
-    //path design
     path mapping_file
     path fastq_folder
-    path db
+    path fasta
     path tax
 
+    def outdir = "result_lotus3"
+
     output:
+    path "${outdir}/OTU.txt", emit: otu_table
+    path "${outdir}/OTU.fna", emit: otu_seq
+    path "${outdir}/hiera_BLAST.txt", emit: otu_taxo
+    path "${outdir}/ExtraFiles/tax.0.blast", emit: blast_result
+
+    path "lotus3_sample_summary.tsv", emit: sample_metrics
+    path "lotus3_global_summary.tsv", emit: global_metrics
+    
     path "*" , optional:true
     path "versions.yml", emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
-
     script:
-    // Définir un output basé sur le nom du fichier mapping
-    def map_basename = mapping_file.baseName
-    def outdir = "result_lotus3_${map_basename}"
-
     // Récupération des args depuis le config (via withName)
     def args = task.ext.args ?: ''
     def args_list = args.tokenize()
+    
+    def sdm_file
+    if (params.techno == "pacbio") {
+        sdm_file = "${projectDir}/sdm/sdm_PacBio_LSSU.txt"
+    }
+    else if (params.techno == "ont") {
+        sdm_file = "${projectDir}/sdm/sdm_ONT_LSSU.txt"
+    }
+    else if (params.techno == "illumina") {
+        sdm_file = "${projectDir}/sdm/sdm_miSeq_ITS.txt"
+    }
 
     """
-    echo "!! Check Input LOTUS3 process !!"
-    echo "fastq     : $fastq_folder"
-    echo "maping_file  : $mapping_file"
-    echo "workdir     : ${projectDir}"
-    echo "ARGS     : {args_list.join(' ')}"
+    mkdir DB
+    # db pour l'outil lotus3 
+    cp ${projectDir}/modules/local/lotus3/DB/phiX.fasta DB/.
+    cp ${projectDir}/modules/local/lotus3/DB/rdp_gold.fa DB/.
 
-    cp -r ${projectDir}/modules/local/lotus3/DB .
-    cp -r ${projectDir}/sdm .
-
-    # 2 - lotus3
     lotus3 \\
-        -m $mapping_file \\
-        -i fastq_folder/ \\
-        -o $outdir \\
-        -s sdm/sdm_ONT_LSSU.txt \\
-        -refDB $db -tax4refDB $tax \\
+        -m ${mapping_file} \\
+        -i ${fastq_folder} \\
+        -s ${sdm_file} \\
+        -o ${outdir} \\
+        -refDB ${fasta} -tax4refDB ${tax} \\
         ${args_list.join(' ')}
+
+
+    # ===== METRICS LOTUS3 =====
+
+    # 1. nombre total de ZOTU (lignes sans header)
+    nb_zotu_total=\$(awk 'NR>1{count++} END{print count}' ${outdir}/OTU.txt)
+
+    # 2. nombre de ZOTU > 5 reads (somme des colonnes)
+    nb_zotu_gt5=\$(awk '
+    NR>1 {
+        sum=0
+        for(i=2;i<=NF;i++) sum+=\$i
+        if(sum > 5) count++
+    }
+    END{print count}
+    ' ${outdir}/OTU.txt)
+
+    # 3. écrire global summary
+    {
+        echo -e "metric\tvalue"
+        echo -e "nb_zotu_total\t\${nb_zotu_total}"
+        echo -e "nb_zotu_gt5\t\${nb_zotu_gt5}"
+    } > lotus3_global_summary.tsv
+
+    # 4. trouver ZOTU majoritaire par sample
+    echo -e "sample\tzotu_major\ttaxonomy\tabundance" > lotus3_sample_summary.tsv
+
+    # récupérer header samples
+    header=\$(head -1 ${outdir}/OTU.txt)
+
+    # pour chaque colonne (sample), récupérer le ZOTU majoritaire et sa taxonomie
+    awk '
+    BEGIN {
+        FS=OFS="\t"
+    }
+
+    FNR==NR {
+        if (NF < 2) next
+
+        otu_id=\$1
+        gsub(/^ +| +\$/, "", otu_id)
+
+        # Ignore un éventuel header du fichier taxo
+        if (otu_id == "OTU" || otu_id == "#OTU" || otu_id == "ZOTU" || otu_id == "#ZOTU") next
+
+        taxonomy=\$2
+        for (i=3; i<=NF; i++) {
+            taxonomy = taxonomy OFS \$i
+        }
+        gsub(/^ +| +\$/, "", otu_id)
+
+        if (taxonomy == "") taxonomy = "NA"
+        tax_by_otu[otu_id] = taxonomy
+        next
+    }
+
+    FNR==1 {
+        n_samples = NF
+        for(i=2;i<=NF;i++) samples[i]=\$i
+        next
+    }
+
+    {
+        otu=\$1
+        for(i=2;i<=NF;i++) {
+            if ((i in max) == 0 || \$i > max[i]) {
+                max[i]=\$i
+                best_otu[i]=otu
+            }
+        }
+    }
+
+    END {
+        for(i=2; i<=n_samples; i++) {
+            otu = best_otu[i]
+            taxonomy = (otu in tax_by_otu) ? tax_by_otu[otu] : "NA"
+            abundance = (i in max) ? max[i] : 0
+            print samples[i], otu, taxonomy, abundance
+        }
+    }
+    ' ${outdir}/hiera_BLAST.txt ${outdir}/OTU.txt >> lotus3_sample_summary.tsv    
 
  
     cat <<-END_VERSIONS > versions.yml

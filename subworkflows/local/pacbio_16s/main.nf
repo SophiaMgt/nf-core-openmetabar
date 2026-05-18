@@ -1,0 +1,66 @@
+// subworkflows/local/pacbio_16s/main.nf
+
+//include { DEMULTIPLEX        } from '../../../modules/local/demultiplex'
+//include { MINIBAR } from '../../../modules/local/minibar/main'
+
+//include { PARSE_WORFLOW      } from '../subworkflows/local/parse_file'
+include { PARSE_FILE } from '../../../modules/local/parse_file/main'
+
+//include { MAPPING_FILE       } from '../subworkflows/local/mapping_file'
+include { BUILD_MAPPING_FILE } from '../../../modules/local/lotus3/mapping_file'
+
+//include { CLUSTER_TAXO       } from '../subworkflows/local/cluster_taxo'
+include { LOTUS3  } from '../../../modules/local/lotus3/main'
+
+include { FILTER             } from '../filter'
+//include { REPORT             } from '../modules/local/report/main'
+
+workflow PACBIO_16S {
+
+    take:
+    ch_design
+    db_ch
+    tax_ch
+
+    main:
+
+    PARSE_FILE(ch_design)
+    barcode_file_ch = PARSE_FILE.out.barcode_file // fichier vide
+    design_file     = PARSE_FILE.out.design_file
+    // Convertir fastq_paths.txt -> Channel<path> (un path par élément)
+    fastq_list_ch = PARSE_FILE.out.fastq_paths
+        .splitText()
+        .map { line -> line.trim() }
+        .filter { it }
+        .map { line ->
+            def parts = line.split(',')
+            tuple(parts.collect { file(it.trim()) })
+    }
+    fastq_list_ch.view { "fastq_list_ch → $it" } 
+    
+    summary_input = PARSE_FILE.out.summary_metrics // input info log
+
+    /*
+    * ETAPE 4 : FILTER
+    */
+    FILTER(fastq_list_ch, params.expected_lengths, params.min_q)
+    fastq_grouped_ch = FILTER.out.filtered_out.collect()
+                        .map { list -> list.flatten() }
+
+    fastq_grouped_ch.view { "fastq_grouped_ch → $it" }
+
+    /*
+    * ETAPE 5 : ANALYSE TAXO
+    */
+    BUILD_MAPPING_FILE(fastq_grouped_ch, design_file)
+    BUILD_MAPPING_FILE.out.mapping_file.view { "MAP → $it" }
+    BUILD_MAPPING_FILE.out.fastq_folder.view { "FASTQ → $it" }
+
+    LOTUS3(
+        BUILD_MAPPING_FILE.out.mapping_file,
+        BUILD_MAPPING_FILE.out.fastq_folder,
+        db_ch,
+        tax_ch
+    )
+
+}

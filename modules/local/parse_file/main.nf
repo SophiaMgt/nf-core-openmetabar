@@ -9,12 +9,13 @@ process PARSE_FILE {
     path "fastq_paths.txt", emit: fastq_paths        // 1 FASTQ par ligne
     path "barcode.txt", optional: true, emit: barcode_file
     path "design_file_cleaned.txt" , emit: design_file
+    path "input_summary.tsv", emit: summary_metrics // metrics
 
     script:
     """
     set -euo pipefail
     echo "[INFO] Parsing design file: ${design_file}"
-
+  
     # Vérification des colonnes obligatoires
     header=\$(head -1 ${design_file})
     required_cols=("Sample_ID" "fastq_path" "barcodeF" "barcodeR" "primerF" "primerR")
@@ -36,12 +37,45 @@ process PARSE_FILE {
     awk -v OFS="\t" 'NR==1{print;next}{gsub(/-/, "_", \$1); print}' "${design_file}" > "\$tmp_clean"
     design_file="\$tmp_clean"
 
-    # Extraire les chemins FASTQ (col 2)
-    awk 'NR>1 && !/^#/ {print \$2}' "\$design_file" | sort | uniq > fastq_paths.txt
-    n=\$(wc -l < fastq_paths.txt)
-    echo "[INFO] Extracted \$n FASTQ path(s)."
+    # Nombre d'échantillons
+    n_samples=\$(awk 'NR>1 && !/^#/ {print \$1}' "\$design_file" | sort -u | wc -l | tr -d ' ')
 
-    # Créer barcode.txt seulement si demultiplexage demandé
+    # Extraire les chemins FASTQ (col 2)
+    awk 'NR>1 && !/^#/ {print \$2}' "\$design_file" | sort -u > fastq_paths.txt
+    n_fastq=\$(wc -l < fastq_paths.txt)
+
+    echo "[INFO] Found \$n_samples sample(s)."
+    echo "[INFO] Extracted \$n_fastq FASTQ path(s)."
+
+    # Compter le nombre total de reads dans les FASTQ
+    total_reads=0
+    while IFS= read -r fq; do
+        if [ ! -f "\$fq" ]; then
+            echo "[ERROR] FASTQ file not found: \$fq"
+            exit 1
+        fi
+
+        if [[ "\$fq" == *.gz ]]; then
+            n_reads=\$(zcat "\$fq" | awk 'END{print NR/4}')
+        else
+            n_reads=\$(awk 'END{print NR/4}' "\$fq")
+        fi
+
+        echo "[INFO] \$fq : \$n_reads reads"
+        total_reads=\$((total_reads + n_reads))
+    done < fastq_paths.txt
+
+    echo "[INFO] Total input reads: \$total_reads"
+
+    # Écrire le résumé global
+    {
+        echo -e "metric\\tvalue"
+        echo -e "n_samples\\t\${n_samples}"
+        echo -e "n_fastq\\t\${n_fastq}"
+        echo -e "n_reads_input\\t\${total_reads}"
+    } > input_summary.tsv
+
+    # Créer barcode.txt pour demultiplexage
     if [ "${params.demux}" = "true" ]; then
         echo "[INFO] Demultiplexing requested → generating barcode.txt"
 
@@ -49,6 +83,7 @@ process PARSE_FILE {
         awk 'NR>1 {print \$1"\\t"\$3"\\t"\$5"\\t"\$4"\\t"\$6}' "\$design_file" > barcode.txt
     else
         echo "[INFO] Demultiplexing disabled → no barcode.txt generated"
+        touch barcode.txt
     fi
 
     # Versions (debug)

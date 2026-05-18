@@ -2,57 +2,118 @@
 set -euo pipefail
 
 design_file="$1"
-demux="$2"
-output_prefix="${3:-mymap}"   # on utilisera mymap_part1.txt et mymap_part2.txt
-
-# Dossier contenant les FASTQ copiés par Nextflow
+filter="$2"
+demux="$3"
 fastq_dir="fastq_folder"
 
-# Nettoyer les retours Windows
+## sup les retours chariot windows
 sed -i 's/\r$//' "$design_file"
 
-# compter le nombre de lignes (hors header)
-num_samples=$(tail -n +2 "$design_file" | wc -l)
-half=$(( (num_samples + 1) / 2 ))  # arrondi vers le haut
+out="mymap.txt"
 
-# fichiers de sortie
-out1="${output_prefix}.txt"
-#out2="${output_prefix}_part2.txt"
-
-# header
-echo -e "#SampleID\tForwardPrimer\tReversePrimer\tfastqFile" > "$out1"
-#echo -e "#SampleID\tForwardPrimer\tReversePrimer\tfastqFile" > "$out2"
-
-# lire et distribuer les lignes
 IFS=$'\t'
-count=0
-{
-    read -r header_line
-    while read -r Sample_ID fastq_path barcodeF barcodeR primerF primerR; do
-        [[ -z "$Sample_ID" ]] && continue
 
-        # Déterminer FASTQ
-        if [[ "$demux" == "true" ]]; then
-            fq="${Sample_ID}_filtered.fastq"
+resolve_fastq_name() {
+    local requested="$1"
+    local candidates=()
+
+    candidates+=("$requested")
+
+    if [[ "$requested" == *.fastq.gz ]]; then
+        candidates+=("${requested%.fastq.gz}.fastq")
+        candidates+=("${requested%.fastq.gz}.filtered.fastq")
+    elif [[ "$requested" == *.fastq ]]; then
+        candidates+=("${requested%.fastq}.filtered.fastq")
+    else
+        candidates+=("${requested}.fastq")
+        candidates+=("${requested}.filtered.fastq")
+    fi
+
+    for candidate in "${candidates[@]}"; do
+        if [[ -f "$fastq_dir/$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+{   # --- HEADER ---
+    read -r header_line
+    read -ra header_cols <<< "$header_line"
+
+    base_header=("#SampleID" "ForwardPrimer" "ReversePrimer" "fastqFile")
+    extra_header=("${header_cols[@]:6}")
+
+    printf "%s\t" "${base_header[@]}" > "$out"
+    printf "%s\t" "${extra_header[@]}" >> "$out"
+    sed -i 's/\t$//' "$out"
+    echo >> "$out"
+} < "$design_file"
+
+while IFS=$'\t' read -r -a cols; do
+    [[ -z "${cols[0]}" ]] && continue
+
+    Sample_ID="${cols[0]}"
+    fastq_path="${cols[1]}"
+    primerF="${cols[4]}"
+    primerR="${cols[5]}"
+    extra_values=("${cols[@]:6}")
+
+    fq_list=()
+    if [[ "$demux" == "true" ]]; then
+        # Chaque SampleID a déjà son propre FASTQ
+        if [[ "$filter" == "true" ]]; then
+            fq_candidate="${Sample_ID}.filtered.fastq" 
         else
-            fq="$(basename "$fastq_path")"
+            fq_candidate="${Sample_ID}.fastq"
         fi
 
-        # Vérifier si le FASTQ est présent
-        if [[ ! -f "$fastq_dir/$fq" ]]; then
-            echo "[WARN] FASTQ not found in $fastq_dir → skipping: $fq" >&2
+        if resolved_fastq="$(resolve_fastq_name "$fq_candidate")"; then
+            fq_list+=("$resolved_fastq")
+        else
+            echo "[WARN] FASTQ not found for SampleID $Sample_ID → skipping: $fq_candidate" >&2
             continue
         fi
 
-        # choisir le fichier de sortie
-        #if (( count < half )); then
-        printf "%s\t%s\t%s\t%s\n" "$Sample_ID" "$primerF" "$primerR" "$fq" >> "$out1"
-        #else
-        #    printf "%s\t%s\t%s\t%s\n" "$Sample_ID" "$primerF" "$primerR" "$fq" >> "$out2"
-        #fi
+    else
+        # Cas non démultiplexé → juste R1 ou R1,R2 séparés par virgule
+        IFS=',' read -ra parts <<< "$fastq_path"
 
-        count=$((count + 1))
-    done
-} < "$design_file"
+        for part in "${parts[@]}"; do
+            base="$(basename "$part")"
 
-echo "[INFO] Mapping files created: $out1"
+            if [[ "$filter" == "true" ]]; then
+                base="${base%.fastq*}.filtered.fastq"
+            fi
+
+            if resolved_fastq="$(resolve_fastq_name "$base")"; then
+                fq_list+=("$resolved_fastq")
+            else
+                echo "[WARN] FASTQ not found in $fastq_dir → skipping: $base" >&2
+            fi
+        done
+
+        [[ ${#fq_list[@]} -eq 0 ]] && continue
+    fi
+    
+    # Rejoindre les fichiers avec virgule pour la colonne fastqFile
+    fq_str=$(IFS=','; echo "${fq_list[*]}")
+    
+    # Écrire dans le mapping file
+
+    # Écrire dans le mapping file
+    printf "%s\t%s\t%s\t%s\t" \
+        "$Sample_ID" \
+        "$primerF" \
+        "$primerR" \
+        "$fq_str" >> "$out"
+
+    printf "%s\t" "${extra_values[@]}" >> "$out"
+    sed -i '$ s/\t$//' "$out"
+    echo >> "$out"
+
+done < <(tail -n +2 "$design_file")
+
+echo "[INFO] Mapping file created: $out"

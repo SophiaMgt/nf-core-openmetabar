@@ -5,7 +5,7 @@ process BUILD_MAPPING_FILE {
     path design
 
     output:
-    path "mymap.txt", emit: mapping_file1
+    path "mymap.txt", emit: mapping_file
     //path "mymap_part2.txt", emit: mapping_file2
     path "fastq_folder/", emit: fastq_folder
     path "fastq_summary.txt", emit: fastq_summary
@@ -34,11 +34,11 @@ process BUILD_MAPPING_FILE {
     echo "[INFO] Total number of sequences (non-empty FASTQ only):"
     grep -h "^@" fastq_folder/*.fastq 2>/dev/null | wc -l || true
 
-    echo "[INFO] Building mapping_file for Lotus3 (split in 2)..."
+    echo "[INFO] Building mapping_file for Lotus3..."
     # mapping file split (only non-empty FASTQ are present)
-    bash ${projectDir}/scripts/build_mapping.sh ${design} $params.demux
+    bash ${projectDir}/scripts/build_mapping.sh ${design} $params.length_filter $params.demux
 
-    echo "[INFO] Creating FASTQ summary..."
+    echo "[INFO] Creating FASTQ summary..." 
     echo -e "File\tNumSequences\tStatus" > fastq_summary.txt
 
     for f in ${fastq.join(' ')}; do
